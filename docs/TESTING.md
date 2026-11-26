@@ -4,7 +4,7 @@
 
 ```powershell
 $env:GRADLE_USER_HOME = "D:\android-build\gradle-home"
-.\gradlew.bat :core:test                 # 59 tests, ~40 s
+.\gradlew.bat :core:test                 # 68 tests on the JVM, ~40 s (GitHub CI also runs them on an iPhone simulator)
 .\gradlew.bat :app:testDebugUnitTest     # Room mapping, Wi-Fi QR round trip
 .\gradlew.bat lintDebug
 .\gradlew.bat connectedDebugAndroidTest  # on a phone or emulator
@@ -24,6 +24,8 @@ $env:GRADLE_USER_HOME = "D:\android-build\gradle-home"
 | `RoomStorageTest` (device) | Duplicate rejection, pending queue, trust records keep local names |
 | `KeystoreIdentityTest` (device) | Identity survives reload |
 | `UiSmokeTest` (device) | App launches and renders |
+| `CryptoVectorsTest` | RFC 4231 / 7748 / 8439 and FIPS 180 vectors for SHA-256, HMAC, X25519, Poly1305, ChaCha20-Poly1305 on the platform crypto and on PortableCrypto |
+| `PortableCryptoTest` (JVM) | PortableCrypto (used on iOS) equals Bouncy Castle on random inputs, tampering rejected |
 | `WifiJoinTest`, `QrTest` | Wi-Fi QR text and escaping; the QR code decodes back to the same text |
 | `JoinIphoneTest` (device) | "Add an iPhone" dialog shows name/password, and the QR code read from the screen pixels decodes correctly |
 

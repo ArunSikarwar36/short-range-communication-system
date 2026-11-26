@@ -53,6 +53,11 @@
   keep the same password on some phones (Android persistent groups).
 - **Pairing depends on users actually comparing the code.**
 - **Denial of service** by radio jamming or a misbehaving relay dropping traffic cannot be prevented.
+- **iOS uses pure-Kotlin crypto primitives** (`PortableCrypto`: X25519 after TweetNaCl,
+  ChaCha20-Poly1305 after RFC 8439 / poly1305-donna, SHA-256), because Bouncy Castle is JVM-only.
+  They are checked against Bouncy Castle on thousands of random inputs and against the RFC and Noise
+  test vectors on both platforms, and are written without secret-dependent branches, but they have
+  not been reviewed for side channels. Android keeps using Bouncy Castle.
 - No independent security review has been done. Do this before relying on the app for anything sensitive.
 
 ## Release checklist

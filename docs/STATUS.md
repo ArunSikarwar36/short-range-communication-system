@@ -21,8 +21,12 @@ sense yet. Everything below the radio and the real microphone/speaker is built a
 - **Done (Android side):** the host phone shows an "Add an iPhone" QR code with its Wi-Fi Direct
   network name and password, so an iPhone can join the group as an ordinary Wi-Fi client.
   Unit-tested and the on-screen QR code is decoded in a device test.
-- **Not done:** the iPhone app itself (shared Kotlin Multiplatform core + iPhone UI, built on
-  GitHub's macOS machines). Not yet checked on real phones that an iPhone joins and stays on an
+- **Done (shared core):** `core` is Kotlin Multiplatform (Android/JVM + iOS). Only crypto
+  primitives, sockets and clock/random/thread helpers differ per platform. All 68 core tests run on
+  the JVM locally; GitHub Actions (`.github/workflows/ci.yml`) runs them on an iPhone simulator and
+  builds the iPhone framework `SrcsCore` on every push. The Android app is unchanged and was
+  re-verified on the emulator (pairing, call, message with the desktop test phone).
+- **Not done:** the iPhone app itself (SwiftUI screens, audio, Keychain storage, joining flow). Not yet checked on real phones that an iPhone joins and stays on an
   Android Wi-Fi Direct group (test 22 in TESTING.md).
 - **Limits by design:** an Android phone must host; the iPhone app works only while it is open
   (iOS cannot ring for offline calls in the background); without a paid Apple account the app

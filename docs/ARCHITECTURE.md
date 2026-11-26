@@ -9,7 +9,7 @@ app/wifidirect    WifiDirectController — discovery, group formation, owner/cli
 app/audio         AndroidCapture / AndroidPlayback / Opus JNI / AudioRouter (focus, routes)
 app/data          Room (peers, messages, call log, group names), DataStore settings
 app/security      KeystoreIdentity — X25519 identity wrapped by an AndroidKeyStore AES key
-──────────────────────────────── core (pure Kotlin, JVM-testable) ────────────────────────────
+──────────────── core (Kotlin Multiplatform: Android/JVM + iOS, tested on both) ───────────────
 core/call         CallStateMachine (pure) + CallManager (signaling, timers, keepalive, stall detection)
 core/group        GroupManager — invites, membership epochs, key rotation, host recovery, PTT
 core/ptt          FloorArbiter (pure) + PttState
@@ -20,7 +20,10 @@ core/node         LinkNode — links, pairing, trust, sealing, routing, relaying
 core/routing      RouteTable (DSDV distance vector), DedupeCache
 core/transport    Link (TCP + Noise XX), LinkServer, MediaSocket (UDP)
 core/protocol     Wire formats (frames, envelopes, app messages, media packets)
-core/crypto       Noise (XX, K), primitives (Bouncy Castle), Sealer, MediaCipher, ReplayWindow, SAS
+core/crypto       Noise (XX, K), primitives (Bouncy Castle on Android, PortableCrypto on iOS), Sealer,
+                  MediaCipher, ReplayWindow, SAS
+core/util         Platform seams (expect/actual): clock, secure random, threads, locks; Net = sockets
+                  (java.net on Android, BSD sockets on iOS)
 ```
 
 The core has no Android dependency, so everything above the radio and the audio hardware is tested

@@ -15,4 +15,6 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "SRCS"
-include(":core", ":app")
+include(":core")
+// CI's iOS job builds only the shared core (set SRCS_CORE_ONLY=1); the Android app needs the Android SDK.
+if (System.getenv("SRCS_CORE_ONLY") == null) include(":app")
