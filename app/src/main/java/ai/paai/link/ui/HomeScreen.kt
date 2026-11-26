@@ -131,6 +131,8 @@ fun HomeScreen(vm: LinkViewModel, gate: PermissionGate, onNavigate: (String) -> 
                 }
             }
 
+            if (online) item { RadarCard(vm, gate, onChat = { onNavigate("chat/${it.hex}") }) }
+
             if (invites.isNotEmpty()) item {
                 SectionCard("Invitations") {
                     invites.forEach { inv ->

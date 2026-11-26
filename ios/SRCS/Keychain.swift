@@ -10,7 +10,7 @@ enum Keychain {
 
     static func identityKey() -> KotlinByteArray {
         if let d = load(), d.count == 32 { return d.kotlinBytes }
-        let key = SrcsController.Companion.shared.newPrivateKey()
+        let key = SrcsController.Companion.shared.generatePrivateKey()
         save(key.data)
         return key
     }

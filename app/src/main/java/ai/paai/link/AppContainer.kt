@@ -30,6 +30,7 @@ import ai.paai.link.data.SettingsRepository
 import ai.paai.link.security.KeystoreIdentity
 import ai.paai.link.service.LinkService
 import ai.paai.link.service.Notifications
+import ai.paai.link.wifiaware.WifiAwareController
 import ai.paai.link.wifidirect.WifiDirectController
 import android.Manifest
 import android.app.Application
@@ -102,6 +103,13 @@ class AppContainer(val app: Application) {
         onGroupRemoved = { scope.launch { _stack.value?.node?.disconnectAll() } },
     )
 
+    /** Wi-Fi Aware: direct phone-to-phone links without a group owner (Android 10+, hardware dependent). */
+    val aware = WifiAwareController(
+        app, log,
+        tcpPort = { _stack.value?.node?.tcpPort?.takeIf { it > 0 } ?: 47700 },
+        onPeerAddress = { host -> dialAware(host) },
+    )
+
     init {
         scope.launch(Dispatchers.IO) {
             val (kp, created) = KeystoreIdentity.loadOrCreate(app)
@@ -127,6 +135,7 @@ class AppContainer(val app: Application) {
             _stack.value = stack
             LinkService.start(app)
             wifi.register()
+            startAwareIfAllowed()
             registerBattery()
             applyRelayPolicy()
             settingsRepo.update { it.copy(wasOnline = true) }
@@ -150,6 +159,7 @@ class AppContainer(val app: Application) {
         _busy.value = true
         try {
             wifi.unregister()
+            aware.stop()
             unregisterBattery()
             _stack.value = null
             s.stop()
@@ -168,6 +178,24 @@ class AppContainer(val app: Application) {
                 delay(1_000L + attempt * 500)
             }
             log.w("app", "could not reach the group owner's link service at ${owner.hostAddress}")
+        }
+    }
+
+    /** Starts Wi-Fi Aware once the nearby-devices permission is granted (also called after a scan grants it). */
+    fun startAwareIfAllowed() {
+        if (_stack.value == null) return
+        val perm = if (android.os.Build.VERSION.SDK_INT >= 33) Manifest.permission.NEARBY_WIFI_DEVICES else Manifest.permission.ACCESS_FINE_LOCATION
+        if (hasPermission(perm)) aware.start()
+    }
+
+    private fun dialAware(host: String) {
+        scope.launch {
+            val node = _stack.value?.node ?: return@launch
+            repeat(4) { attempt ->
+                if (node.connect(host, node.config.tcpPort).isSuccess) return@launch
+                delay(800L + attempt * 700)
+            }
+            log.w("app", "could not open an SRCS link over Wi-Fi Aware")
         }
     }
 

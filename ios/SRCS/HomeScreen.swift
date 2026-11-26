@@ -9,6 +9,9 @@ struct HomeScreen: View {
         NavigationStack {
             List {
                 statusSection
+                if model.snap?.online == true {
+                    Section("Nearby radar") { RadarView() }
+                }
                 if let g = model.snap?.group {
                     Section {
                         NavigationLink {

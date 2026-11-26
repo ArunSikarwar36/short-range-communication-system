@@ -312,12 +312,21 @@ class IntegrationTest {
     @Test
     fun `next member takes over when the host disappears`() {
         val (a, b, c) = groupOf3(GroupMode.CALL, meshed = true)
-        a.stop()
-        eventually(timeoutMs = 15_000, what = "B hosts") {
-            b.groups.group.value?.role == GroupRole.HOST && c.groups.group.value?.host == b.id && c.groups.group.value?.status == GroupStatus.ACTIVE
+        // The successor is the second member in join order, which depends on who accepted first.
+        eventually(what = "same member order everywhere") {
+            val order = a.groups.group.value!!.members.map { it.id }
+            b.groups.group.value?.members?.map { it.id } == order && c.groups.group.value?.members?.map { it.id } == order
         }
-        assertEquals(2, b.groups.group.value!!.members.size)
-        eventually(what = "audio after recovery") { c.engine.heardCount(2000) > 5 }
+        val successorId = a.groups.group.value!!.members[1].id
+        val (next, other) = if (successorId == b.id) b to c else c to b
+        a.stop()
+        eventually(timeoutMs = 15_000, what = "${next.name} hosts") {
+            next.groups.group.value?.role == GroupRole.HOST && other.groups.group.value?.host == next.id &&
+                other.groups.group.value?.status == GroupStatus.ACTIVE
+        }
+        assertEquals(2, next.groups.group.value!!.members.size)
+        val nextTone = if (next === b) 2000 else 3000
+        eventually(what = "audio after recovery") { other.engine.heardCount(nextTone) > 5 }
     }
 
     @Test

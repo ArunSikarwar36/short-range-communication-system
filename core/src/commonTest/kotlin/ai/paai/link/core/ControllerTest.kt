@@ -23,7 +23,7 @@ class ControllerTest {
         name: String,
         engine: FakeAudioEngine,
         dir: String = Files.createTempDir("srcs-test-"),
-        key: ByteArray = SrcsController.newPrivateKey(),
+        key: ByteArray = SrcsController.generatePrivateKey(),
     ) = SrcsController(dir, key, name, engine, object : MediaHooks {}, config(), FAST_TIMERS, 1_200).also { made += it }
 
     @AfterTest
@@ -45,7 +45,7 @@ class ControllerTest {
         val engineA = FakeAudioEngine(1000)
         val engineB = FakeAudioEngine(2000)
         val dirB = Files.createTempDir("srcs-iphone-")
-        val keyB = SrcsController.newPrivateKey()
+        val keyB = SrcsController.generatePrivateKey()
         val a = controller("Android host", engineA)
         val b = controller("iPhone", engineB, dirB, keyB)
         runBlocking { assertTrue(a.start()); assertTrue(b.start()) }
@@ -104,5 +104,23 @@ class ControllerTest {
         eventually(what = "channel free") { a.snapshot.value.group?.talker == "" && b.snapshot.value.group?.iAmTalking == false }
         b.leaveGroup()
         eventually(what = "left") { b.snapshot.value.group == null && a.snapshot.value.group?.members?.size == 1 }
+    }
+}
+
+class RadarLayoutTest {
+    @Test
+    fun ringsAnglesAndOverflow() {
+        val e = listOf(
+            ai.paai.link.core.app.RadarEntry("a", "Asha", ai.paai.link.core.app.RadarRing.LINKED),
+            ai.paai.link.core.app.RadarEntry("b", "Ben", ai.paai.link.core.app.RadarRing.LINKED),
+            ai.paai.link.core.app.RadarEntry("c", "Chen", ai.paai.link.core.app.RadarRing.RELAYED),
+        ) + (1..14).map { ai.paai.link.core.app.RadarEntry("n$it", "Phone $it", ai.paai.link.core.app.RadarRing.NEARBY) }
+        val dots = ai.paai.link.core.app.RadarLayout.place(e)
+        assertEquals(2 + 1 + ai.paai.link.core.app.RadarLayout.MAX_PER_RING, dots.size)
+        assertEquals(4, ai.paai.link.core.app.RadarLayout.overflow(e))
+        val linked = dots.filter { it.ring == ai.paai.link.core.app.RadarRing.LINKED }
+        assertEquals(180f, kotlin.math.abs(linked[0].angleDeg - linked[1].angleDeg), "two phones sit opposite each other")
+        assertTrue(dots.all { it.angleDeg in 0f..360f && it.radius == it.ring.radius })
+        assertEquals(dots, ai.paai.link.core.app.RadarLayout.place(e.reversed()), "same picture regardless of input order")
     }
 }

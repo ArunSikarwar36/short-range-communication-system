@@ -117,6 +117,8 @@ data class AppSnapshot(
     /** Changes whenever any stored message changes; re-read [SrcsController.messages] when it does. */
     val messagesVersion: Long,
     val recentLog: List<String>,
+    /** Phones to draw on the Nearby radar (paired and linked, relayed, or waiting for pairing). */
+    val radar: List<RadarDot>,
 )
 
 /** Returned by the watch functions; call [cancel] to stop receiving updates. */
@@ -390,7 +392,7 @@ class SrcsController(
     private fun emptySnapshot() = AppSnapshot(
         online = false, busy = false, displayName = name, deviceId = LocalIdentity(keyPair, name).deviceId.hex,
         fingerprint = LocalIdentity(keyPair, name).fingerprint, linkCount = 0, pairings = emptyList(), peers = emptyList(),
-        call = null, group = null, invites = emptyList(), messagesVersion = 0, recentLog = emptyList(),
+        call = null, group = null, invites = emptyList(), messagesVersion = 0, recentLog = emptyList(), radar = emptyList(),
     )
 
     private fun publish() {
@@ -440,6 +442,12 @@ class SrcsController(
             )
         }
 
+        val pairingLinks = links.filter { !it.trusted }
+        val radar = RadarLayout.place(
+            peers.filter { it.reachable }.map { RadarEntry(it.id, it.name, if (it.direct) RadarRing.LINKED else RadarRing.RELAYED, peerId = it.id) } +
+                pairingLinks.map { RadarEntry("link:${it.linkId}", it.remoteName, RadarRing.NEARBY, pairingLinkId = it.linkId) },
+        )
+
         return AppSnapshot(
             online = s != null, busy = busy.value, displayName = name, deviceId = me.deviceId.hex, fingerprint = me.fingerprint,
             linkCount = links.count { it.trusted },
@@ -448,6 +456,7 @@ class SrcsController(
             invites = s?.groups?.invites?.value?.map { InviteView(it.groupId.hex, it.name, it.fromName, it.mode == GroupMode.PTT) } ?: emptyList(),
             messagesVersion = messageStore.version.value,
             recentLog = log.lines.value.takeLast(80).map { "${it.level.name.first()} ${it.tag}: ${it.message}" },
+            radar = radar,
         )
     }
 
@@ -481,6 +490,6 @@ class SrcsController(
             SrcsController(dataDir, privateKey, displayName, audio, hooks)
 
         /** A new random X25519 private key (the iOS app stores it in the Keychain). */
-        fun newPrivateKey(): ByteArray = ai.paai.link.core.crypto.Primitives.generateKeyPair().privateKeyCopy()
+        fun generatePrivateKey(): ByteArray = ai.paai.link.core.crypto.Primitives.generateKeyPair().privateKeyCopy()
     }
 }

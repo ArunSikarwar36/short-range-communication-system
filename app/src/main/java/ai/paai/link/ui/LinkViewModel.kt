@@ -56,6 +56,7 @@ class LinkViewModel(app: Application) : AndroidViewModel(app) {
     val settings: StateFlow<Settings> = c.settings
     val fingerprint = c.fingerprint
     val wifi = c.wifi.state
+    val aware = c.aware.state
     val logs = c.log.lines
     val route = c.audioRouter.state
 
@@ -123,7 +124,10 @@ class LinkViewModel(app: Application) : AndroidViewModel(app) {
 
     // ------------------------------------------------------------------ Wi-Fi Direct and links
 
-    fun scan() = c.wifi.discover()
+    fun scan() {
+        c.wifi.discover()
+        c.startAwareIfAllowed()
+    }
     fun stopScan() = c.wifi.stopDiscovery()
     fun connectP2p(p: P2pPeer) = c.wifi.connect(p)
     fun hostGroup() = c.wifi.createGroup()

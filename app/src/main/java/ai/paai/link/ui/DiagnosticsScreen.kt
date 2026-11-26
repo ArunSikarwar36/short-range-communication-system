@@ -54,6 +54,7 @@ fun DiagnosticsScreen(vm: LinkViewModel, onBack: () -> Unit) {
     val links by vm.links.collectAsStateWithLifecycle()
     val routes by vm.routes.collectAsStateWithLifecycle()
     val wifi by vm.wifi.collectAsStateWithLifecycle()
+    val aware by vm.aware.collectAsStateWithLifecycle()
     val logs by vm.logs.collectAsStateWithLifecycle()
     val callSession by vm.callSession.collectAsStateWithLifecycle()
     val groupSession by vm.groupSession.collectAsStateWithLifecycle()
@@ -94,6 +95,14 @@ fun DiagnosticsScreen(vm: LinkViewModel, onBack: () -> Unit) {
                     wifi.group.networkName?.let { Mono("Network     $it") }
                     Mono("Peers seen  ${wifi.peers.size}")
                     wifi.lastError?.let { Text(it, color = LinkColors.Warn, style = MaterialTheme.typography.bodySmall) }
+                }
+            }
+            item {
+                SectionCard("Wi-Fi Aware") {
+                    Mono("Supported   ${aware.supported}   Available ${aware.available}   Running ${aware.running}")
+                    Mono("Peers seen  ${aware.peers.size}   Data paths ${aware.dataPaths}/${aware.maxDataPaths}")
+                    if (!aware.supported) Hint("This phone has no Wi-Fi Aware (or runs Android 9 or older). SRCS uses Wi-Fi Direct instead.")
+                    aware.lastError?.let { Text(it, color = LinkColors.Warn, style = MaterialTheme.typography.bodySmall) }
                 }
             }
             item {

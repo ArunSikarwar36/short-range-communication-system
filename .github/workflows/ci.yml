@@ -6,6 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+defaults:
+  run:
+    # bash -eo pipefail: a failing command piped into tail must still fail the step.
+    shell: bash
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -96,6 +101,7 @@ jobs:
           xcodebuild -project SRCS.xcodeproj -scheme SRCS -configuration Release -sdk iphoneos \
             -destination 'generic/platform=iOS' -derivedDataPath build/dd \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build | tail -n 40
+          test -d build/dd/Build/Products/Release-iphoneos/SRCS.app
           rm -rf build/ipa && mkdir -p build/ipa/Payload
           cp -R build/dd/Build/Products/Release-iphoneos/SRCS.app build/ipa/Payload/
           (cd build/ipa && zip -qry ../SRCS-unsigned.ipa Payload)
