@@ -42,7 +42,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
  *
  * Run: gradlew :core:demoPeer   (listens on TCP 47710 / UDP 47711)
  * From the emulator: Diagnostics → Connect by address → 10.0.2.2:47710
- * Commands: write "call" / "hangup" / "msg <text>" into D:\android-build\demo-peer.cmd
+ * Commands: write "call" / "hangup" / "msg <text>" / "loc <lat> <lon>" (share that position) /
+ * "sos <note>" into D:\android-build\demo-peer.cmd
  */
 /** Key and command files: D:/android-build on the development PC, the temp folder elsewhere (CI on macOS). */
 private val demoDir: String = System.getenv("SRCS_DEMO_DIR")
@@ -59,6 +60,7 @@ fun main() = runBlocking {
     val calls = CallManager(node, media, scope)
     val groups = GroupManager(node, media, scope, isCallActive = { calls.state.value.phase.isLive })
     val messages = MessagingService(node, InMemoryMessageStore(), groups, scope)
+    val location = ai.paai.link.core.location.LocationService(node, groups, scope)
     node.start()
     println("Desktop test phone ${node.selfId.short} listening on tcp ${node.tcpPort} / udp ${node.udpPort}")
 
@@ -86,6 +88,12 @@ fun main() = runBlocking {
         }
     }
     scope.launch {
+        location.friends.collect { list -> list.forEach { println(">>> ${it.name} shares location %.5f, %.5f".format(it.lat, it.lon)) } }
+    }
+    scope.launch {
+        location.sosReceived.collect { println(">>> SOS from ${it.name}: ${it.note} ${it.fix?.let { f -> "at %.5f, %.5f".format(f.lat, f.lon) } ?: "(no position)"}") }
+    }
+    scope.launch {
         groups.invites.collect { list -> list.forEach { println(">>> Joining group ${it.name}"); groups.acceptInvite(it.groupId) } }
     }
     scope.launch {
@@ -110,6 +118,13 @@ fun main() = runBlocking {
             cmd == "call" -> println("calling: ${calls.call(peer)}")
             cmd == "hangup" -> calls.hangup()
             cmd.startsWith("msg ") -> messages.send(peer, cmd.removePrefix("msg "))
+            cmd.startsWith("loc ") -> {
+                val (lat, lon) = cmd.removePrefix("loc ").trim().split(Regex("[ ,]+")).map { it.toDouble() }
+                location.onFix(ai.paai.link.core.location.GeoFix(lat, lon, 5f, System.currentTimeMillis()))
+                if (!location.sharing.value.active) location.startSharing(toPaired = true, toGroup = false, durationMs = 3_600_000)
+                println("sharing location %.5f, %.5f".format(lat, lon))
+            }
+            cmd.startsWith("sos") -> println("SOS sent to ${location.sendSos(cmd.removePrefix("sos").trim())}")
             else -> println("!!! unknown command $cmd")
         }
     }

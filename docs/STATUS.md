@@ -17,6 +17,17 @@ sense yet. Everything below the radio and the real microphone/speaker is built a
 | 6 Relay | DSDV routing, TTL/hop limit, loop prevention, route expiry/withdrawal, dedupe, relay authorisation (paired only), per-source rate limit, battery policy, topology screen | Line-topology routing tests; relayed messages and calls; withdrawal when relay disappears | A–B–C range extension in the field; battery/throughput impact. Multi-group bridging is not possible with standard Wi-Fi Direct (see ARCHITECTURE.md) |
 | 7 Hardening & release | Threat model, fuzz tests, lint clean, R8 release build, signing setup, data excluded from backup, user guide | Protocol fuzzing (20k random + mutations), lint | Compatibility matrix, long-call and battery tests, independent security review, release key |
 
+## Live location and SOS (2026-11-26)
+- **Built on Android and iPhone, shared logic in core (`LocationService`).** Opt-in sharing with paired
+  phones and/or the group (through the host), 15 min / 1 h / 8 h, stop at any time; updates only
+  when moved 8 m (at most every 5 s, at least every minute). SOS goes to every paired phone and the
+  group with the GPS position if one is found within 8 s, and is stored and forwarded for phones out of
+  range. The radar places friends who share at their real direction and distance.
+- **Tested:** `GeoTest`, `LocationTest` (rate limit, stop, group via host, SOS once), on the emulator
+  against the desktop test phone: friend shown 315 m NE on the radar, location received by the desktop,
+  SOS both ways with coordinates and note. Real GPS accuracy outdoors not tested yet.
+- **Next:** offline maps from downloaded OpenStreetMap region files, then DJ Mode.
+
 ## Wi-Fi Aware and Nearby radar (2026-11-26)
 - **Android Wi-Fi Aware: built, not yet tested on phones.** Runs alongside Wi-Fi Direct on Android 10+
   phones with Wi-Fi Aware hardware: phones discover each other (only a random per-session number is

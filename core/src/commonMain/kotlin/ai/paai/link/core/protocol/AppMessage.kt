@@ -111,6 +111,37 @@ sealed class AppMessage(val code: Int) {
     // --- Media quality feedback (receiver report) ---
     data class MediaReport(val sessionId: DeviceId, val lossPermille: Int, val jitterMs: Int) : AppMessage(40)
 
+    // --- Location sharing and SOS (added without a version bump: older apps ignore unknown codes) ---
+    /**
+     * Where [subject] is. Sent by the subject to each recipient, or to the group host with [groupId]
+     * set, which forwards it to the other members (as with group text). Coordinates in 1e-7 degrees.
+     * [until] is when the sender's sharing ends (wall clock), so receivers can expire it.
+     */
+    data class Location(
+        val subject: DeviceId,
+        val subjectName: String,
+        val groupId: DeviceId,
+        val latE7: Int,
+        val lonE7: Int,
+        val accuracyM: Int,
+        val fixAt: Long,
+        val until: Long,
+    ) : AppMessage(50)
+    data class LocationStop(val subject: DeviceId, val groupId: DeviceId) : AppMessage(51)
+    /** Emergency alert. [hasFix] is false when no GPS position is available; coordinates are then 0. */
+    data class Sos(
+        val alertId: DeviceId,
+        val subject: DeviceId,
+        val subjectName: String,
+        val groupId: DeviceId,
+        val hasFix: Boolean,
+        val latE7: Int,
+        val lonE7: Int,
+        val accuracyM: Int,
+        val fixAt: Long,
+        val note: String,
+    ) : AppMessage(52)
+
     fun encode(): ByteArray {
         val w = ByteWriter().u8(code)
         when (this) {
@@ -146,11 +177,24 @@ sealed class AppMessage(val code: Int) {
                 .u64(sentAt).string(body, ProtocolLimits.MAX_TEXT_BYTES)
             is TextAck -> w.id(messageId).u8(status.code)
             is MediaReport -> w.id(sessionId).u16(lossPermille.coerceIn(0, 1000)).u16(jitterMs.coerceIn(0, 65535))
+            is Location -> w.id(subject).string(subjectName, ProtocolLimits.MAX_NAME_BYTES).id(groupId).i32(latE7).i32(lonE7)
+                .u16(accuracyM.coerceIn(0, 65535)).u64(fixAt).u64(until)
+            is LocationStop -> w.id(subject).id(groupId)
+            is Sos -> w.id(alertId).id(subject).string(subjectName, ProtocolLimits.MAX_NAME_BYTES).id(groupId).bool(hasFix)
+                .i32(latE7).i32(lonE7).u16(accuracyM.coerceIn(0, 65535)).u64(fixAt).string(note, MAX_SOS_NOTE_BYTES)
         }
         return w.bytes()
     }
 
     companion object {
+        const val MAX_SOS_NOTE_BYTES = 280
+
+        private fun checkCoordinates(latE7: Int, lonE7: Int) {
+            if (latE7 !in -900_000_000..900_000_000 || lonE7 !in -1_800_000_000..1_800_000_000) throw ProtocolException("coordinates out of range")
+        }
+
+        private fun Location.validate() = checkCoordinates(latE7, lonE7)
+
         fun decode(b: ByteArray): AppMessage {
             val r = ByteReader(b)
             val m = when (val code = r.u8()) {
@@ -189,6 +233,10 @@ sealed class AppMessage(val code: Int) {
                 30 -> Text(r.id(), r.id(), r.id(), r.string(ProtocolLimits.MAX_NAME_BYTES), r.u64(), r.string(ProtocolLimits.MAX_TEXT_BYTES))
                 31 -> TextAck(r.id(), AckStatus.of(r.u8()))
                 40 -> MediaReport(r.id(), r.u16(), r.u16())
+                50 -> Location(r.id(), r.string(ProtocolLimits.MAX_NAME_BYTES), r.id(), r.i32(), r.i32(), r.u16(), r.u64(), r.u64()).also { it.validate() }
+                51 -> LocationStop(r.id(), r.id())
+                52 -> Sos(r.id(), r.id(), r.string(ProtocolLimits.MAX_NAME_BYTES), r.id(), r.bool(), r.i32(), r.i32(), r.u16(), r.u64(), r.string(MAX_SOS_NOTE_BYTES))
+                    .also { if (it.hasFix) checkCoordinates(it.latE7, it.lonE7) }
                 else -> throw ProtocolException("unknown app message $code")
             }
             r.requireEnd()

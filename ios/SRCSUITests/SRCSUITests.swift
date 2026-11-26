@@ -46,12 +46,16 @@ final class SRCSUITests: XCTestCase {
         XCTAssertTrue(match.waitForExistence(timeout: 30), "pairing dialog")
         snap(app, "03-pairing-code")
         match.tap()
-        XCTAssertTrue(app.staticTexts["Online · 1 linked"].waitForExistence(timeout: 30))
-        XCTAssertTrue(app.staticTexts["Desktop test phone"].waitForExistence(timeout: 10))
+        // The list has scrolled to the address field; the paired phone's row appears just below it.
+        let chat = app.buttons["chat-Desktop test phone"]
+        if !chat.waitForExistence(timeout: 30) {
+            app.swipeUp()
+        }
+        XCTAssertTrue(chat.waitForExistence(timeout: 10), "paired phone listed")
         snap(app, "04-paired")
 
         // Message and echo.
-        app.buttons["chat-Desktop test phone"].tap()
+        chat.tap()
         let field = app.textFields["messageField"]
         XCTAssertTrue(field.waitForExistence(timeout: 10))
         field.tap()

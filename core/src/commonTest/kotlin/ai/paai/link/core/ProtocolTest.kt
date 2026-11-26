@@ -54,6 +54,10 @@ class ProtocolTest {
         AppMessage.Text(id(), DeviceId.ZERO, id(), "Arun", 1_700_000_000_000, "नमस्ते, hello 👋"),
         AppMessage.TextAck(id(), AckStatus.READ),
         AppMessage.MediaReport(id(), 25, 12),
+        AppMessage.Location(id(), "Asha", DeviceId.ZERO, 286_139_000, 772_090_000, 12, 1_700_000_000_000, 1_700_003_600_000),
+        AppMessage.LocationStop(id(), id()),
+        AppMessage.Sos(id(), id(), "Asha", id(), true, -337_000_000, -1_799_999_999, 30, 1_700_000_000_000, "Fell, ankle hurt"),
+        AppMessage.Sos(id(), id(), "Ben", DeviceId.ZERO, false, 0, 0, 0, 0, ""),
     )
 
     @Test

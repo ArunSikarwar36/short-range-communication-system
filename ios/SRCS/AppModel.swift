@@ -19,6 +19,8 @@ final class AppModel: ObservableObject {
     }
 
     let controller: SrcsController
+    let gps: GpsProvider
+    private var sosPending = false
     private let defaults = UserDefaults.standard
     private var watchers: [Watcher] = []
     private var noticeTimer: Timer?
@@ -45,6 +47,7 @@ final class AppModel: ObservableObject {
             hooks: AudioHooks()
         )
         controller.setAutoConnect(enabled: auto)
+        gps = GpsProvider(controller: controller)
         watchers.append(controller.watch { [weak self] s in
             DispatchQueue.main.async { self?.apply(s) }
         })
@@ -64,6 +67,32 @@ final class AppModel: ObservableObject {
         let live = s.call?.live == true
         UIApplication.shared.isIdleTimerDisabled = live || s.group != nil
         UIDevice.current.isProximityMonitoringEnabled = live && !speakerOn
+        updateGps()
+    }
+
+    /// GPS only while sharing, sending an SOS, or showing friends' positions.
+    private func updateGps() {
+        let sharing = snap?.location.sharing == true
+        let friends = !(snap?.friends.isEmpty ?? true)
+        gps.setWanted(sharing || sosPending || friends, inBackground: sharing)
+    }
+
+    /// Waits up to 8 s for a GPS fix so the SOS can carry coordinates, then sends it.
+    func sendSos(_ note: String) {
+        sosPending = true
+        updateGps()
+        show("Getting your position…")
+        let deadline = Date().addingTimeInterval(8)
+        func attempt() {
+            if snap?.location.hasFix == true || Date() > deadline {
+                controller.sendSos(note: note)
+                sosPending = false
+                updateGps()
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: attempt)
+            }
+        }
+        attempt()
     }
 
     func show(_ text: String) {

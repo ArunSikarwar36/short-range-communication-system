@@ -27,7 +27,8 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        UIBackgroundModes: [audio]
+        UIBackgroundModes: [audio, location]
+        NSLocationWhenInUseUsageDescription: "SRCS uses GPS only when you share your location with the phones you choose, send an SOS, or view where friends who share with you are. GPS works without internet."
         NSMicrophoneUsageDescription: "SRCS uses the microphone for calls, group calls and the walkie-talkie. Audio goes only to the phones in the call, encrypted."
         NSLocalNetworkUsageDescription: "SRCS talks directly to nearby phones on the same Wi-Fi network (for example an Android phone hosting an SRCS group). No internet is used."
         ITSAppUsesNonExemptEncryption: false

@@ -26,6 +26,7 @@ $env:GRADLE_USER_HOME = "D:\android-build\gradle-home"
 | `UiSmokeTest` (device) | App launches and renders |
 | `CryptoVectorsTest` | RFC 4231 / 7748 / 8439 and FIPS 180 vectors for SHA-256, HMAC, X25519, Poly1305, ChaCha20-Poly1305 on the platform crypto and on PortableCrypto |
 | `PortableCryptoTest` (JVM) | PortableCrypto (used on iOS) equals Bouncy Castle on random inputs, tampering rejected |
+| `GeoTest`, `LocationTest` | Distance/bearing maths; opt-in sharing, rate limit, stop removes the position, group positions via the host, SOS delivered once |
 | `WifiJoinTest`, `QrTest` | Wi-Fi QR text and escaping; the QR code decodes back to the same text |
 | `JoinIphoneTest` (device) | "Add an iPhone" dialog shows name/password, and the QR code read from the screen pixels decodes correctly |
 
@@ -58,6 +59,7 @@ Record phone models and Android versions for every run. Mobile data **off**, no 
 | 21 | Repeated calls | 20 calls in a row | No leak: memory stable, mic released each time |
 | 22 | iPhone joins Wi-Fi | A hosts, taps Add an iPhone; iPhone Camera scans the code | iPhone joins `DIRECT-…` and stays on it with no internet; A's group stays up |
 | 23 | Wi-Fi Aware | Two Android 10+ phones with Wi-Fi Aware, both online, no group hosted | Each appears on the other's radar, links automatically, pairing code shown; Diagnostics shows 1 data path |
+| 24 | Location and SOS outdoors | A shares location with B 200 m away; then A sends SOS | B's radar shows A at the right direction and roughly 200 m; SOS alarm sounds on B with A's position |
 
 ### Measuring latency
 Put both phones side by side, clap near A, record both speakers with a third device; the delay

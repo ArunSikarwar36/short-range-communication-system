@@ -52,6 +52,16 @@ and *Read*.
 | Messages stay "Waiting for device" | The other phone is out of reach. They are sent when it comes back (kept up to 24 h). |
 | Battery | Go offline when not needed; relaying for others pauses automatically at low battery. |
 
+## Location and SOS
+- **Share my location** (Location card): choose paired phones in range and/or your group and for how
+  long (15 min, 1 hour, 8 hours). Tap **Stop** at any time; it also stops by itself and when you go
+  offline. Friends who share with you appear on the radar at their real direction and distance, and
+  **Map** opens their position in an installed map app (OsmAnd or Organic Maps work offline).
+- **SOS**: sends an alarm with your GPS position (if found within a few seconds) and an optional note
+  to every paired phone and your group. Phones out of range get it when they come back in range.
+- GPS works without internet. SRCS only turns it on while you share, send an SOS, or look at
+  friends' positions.
+
 ## Privacy
 No accounts, servers or internet. Everything is end-to-end encrypted between phones. Messages and
 call history stay on your phone; delete conversations or set automatic deletion in Settings.

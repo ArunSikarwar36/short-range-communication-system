@@ -57,6 +57,29 @@ class LinkViewModel(app: Application) : AndroidViewModel(app) {
     val fingerprint = c.fingerprint
     val wifi = c.wifi.state
     val aware = c.aware.state
+    val sharing = c.stack.flatMapLatest { it?.location?.sharing ?: flowOf(ai.paai.link.core.location.SharingState()) }.state(ai.paai.link.core.location.SharingState())
+    val friendLocations = c.stack.flatMapLatest { it?.location?.friends ?: flowOf(emptyList()) }.state(emptyList())
+    val myFix = c.stack.flatMapLatest { it?.location?.myFix ?: flowOf(null) }.state(null)
+    val activeSos = c.stack.flatMapLatest { it?.location?.activeSos ?: flowOf(emptyList()) }.state(emptyList())
+    val gpsEnabled: Boolean get() = c.gps.gpsEnabled
+
+    fun startSharing(toPaired: Boolean, toGroup: Boolean, minutes: Int) {
+        val s = c.stack.value ?: return toast("Go online first")
+        if (!c.gps.hasPermission()) return toast("Location permission is needed")
+        s.location.startSharing(toPaired, toGroup, minutes * 60_000L)
+        if (!c.gps.gpsEnabled) toast("Turn on Location in Android settings so GPS can find you")
+    }
+
+    fun stopSharing() { c.stack.value?.location?.stopSharing() }
+
+    fun sendSos(note: String) = launch {
+        if (c.stack.value == null) return@launch toast("Go online first: SOS needs at least one phone in range")
+        toast("Getting your position…")
+        val n = c.sendSos(note)
+        toast(if (n > 0) "SOS sent to $n phone(s)" else "SOS queued: no paired phone in range yet")
+    }
+
+    fun dismissSos(id: ai.paai.link.core.util.DeviceId) { c.stack.value?.location?.dismissSos(id) }
     val logs = c.log.lines
     val route = c.audioRouter.state
 

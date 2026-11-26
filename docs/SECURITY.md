@@ -51,6 +51,10 @@
   join the Wi-Fi network and reach the host's SRCS port, but cannot talk or listen: SRCS still
   requires the Noise handshake and a confirmed pairing code. Leaving and re-hosting the group may
   keep the same password on some phones (Android persistent groups).
+- **Location is personal data.** It is sent only after the user starts sharing, only to paired
+  phones / the user's group, sealed end to end, and sharing always has an end time. A group host can
+  read and forward group members' positions (same trust as group text). Friends' positions are kept
+  in memory only and expire after 30 minutes without updates.
 - **Pairing depends on users actually comparing the code.**
 - **Denial of service** by radio jamming or a misbehaving relay dropping traffic cannot be prevented.
 - **iOS uses pure-Kotlin crypto primitives** (`PortableCrypto`: X25519 after TweetNaCl,

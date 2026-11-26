@@ -58,6 +58,9 @@ struct RadarView: View {
                                 .overlay(Circle().stroke(color(d), lineWidth: 2))
                                 .overlay(Text(String(d.name.prefix(1)).uppercased()).bold())
                             Text(d.name).font(.system(size: 10)).lineLimit(1).frame(width: 64)
+                            if d.distanceM >= 0 {
+                                Text(distanceLabel(d.distanceM)).font(.system(size: 9)).foregroundStyle(.secondary)
+                            }
                         }
                         .position(x: x, y: y + 10)
                         .onTapGesture { selected = d }
@@ -86,6 +89,10 @@ struct RadarView: View {
                 Text(d.peerId.isEmpty ? "Waiting for both phones to confirm the pairing code." : (d.ring == RadarRing.linked ? "Linked directly." : "Reached through another phone (relay)."))
             }
         }
+    }
+
+    private func distanceLabel(_ m: Double) -> String {
+        m < 1000 ? "\(Int((m / 5).rounded()) * 5) m" : String(format: "%.1f km", m / 1000)
     }
 
     private func legend(_ c: Color, _ text: String) -> some View {

@@ -8,6 +8,9 @@ import ai.paai.link.core.crypto.LocalIdentity
 import ai.paai.link.core.group.GroupEvent
 import ai.paai.link.core.group.GroupManager
 import ai.paai.link.core.group.GroupRole
+import ai.paai.link.core.location.Geo
+import ai.paai.link.core.location.GeoFix
+import ai.paai.link.core.location.LocationService
 import ai.paai.link.core.media.AudioEngine
 import ai.paai.link.core.media.MediaCoordinator
 import ai.paai.link.core.media.MediaHooks
@@ -102,6 +105,43 @@ data class MessageView(
     val status: String,
 )
 
+data class FriendView(
+    val id: String,
+    val name: String,
+    val lat: Double,
+    val lon: Double,
+    val accuracyM: Int,
+    /** "240 m NE", or empty while this phone has no GPS fix. */
+    val distanceText: String,
+    /** Seconds since the friend's position was measured. */
+    val ageSeconds: Long,
+    val viaGroup: Boolean,
+)
+
+data class SosView(
+    val alertId: String,
+    val name: String,
+    val note: String,
+    val hasFix: Boolean,
+    val lat: Double,
+    val lon: Double,
+    val distanceText: String,
+    val receivedAt: Long,
+)
+
+data class LocationView(
+    val sharing: Boolean,
+    val toPaired: Boolean,
+    val toGroup: Boolean,
+    /** Wall-clock end of sharing, 0 when not sharing. */
+    val sharingUntil: Long,
+    val recipients: Int,
+    val hasFix: Boolean,
+    val lat: Double,
+    val lon: Double,
+    val accuracyM: Int,
+)
+
 data class AppSnapshot(
     val online: Boolean,
     val busy: Boolean,
@@ -119,6 +159,9 @@ data class AppSnapshot(
     val recentLog: List<String>,
     /** Phones to draw on the Nearby radar (paired and linked, relayed, or waiting for pairing). */
     val radar: List<RadarDot>,
+    val location: LocationView,
+    val friends: List<FriendView>,
+    val sos: List<SosView>,
 )
 
 /** Returned by the watch functions; call [cancel] to stop receiving updates. */
@@ -151,6 +194,7 @@ class SrcsController(
     @Volatile private var name = displayName.trim().ifBlank { "iPhone" }.take(40)
     @Volatile private var stack: Stack? = null
     @Volatile private var autoConnect = false
+    @Volatile private var lastFix: GeoFix? = null
     private val busy = MutableStateFlow(false)
 
     private val _snapshot = MutableStateFlow(emptySnapshot())
@@ -179,6 +223,7 @@ class SrcsController(
         val calls = CallManager(node, media, scope, timerMs = callTimers, stallMs = callStallMs)
         val groups = GroupManager(node, media, scope, isCallActive = { calls.state.value.phase.isLive })
         val messaging = MessagingService(node, messageStore, groups, scope)
+        val location = LocationService(node, groups, scope)
 
         fun watchAll() {
             scope.launch { node.linkInfos.collect { publish() } }
@@ -189,6 +234,14 @@ class SrcsController(
             scope.launch { groups.group.collect { publish() } }
             scope.launch { groups.ptt.collect { publish() } }
             scope.launch { groups.invites.collect { publish() } }
+            scope.launch { location.sharing.collect { publish() } }
+            scope.launch { location.friends.collect { publish() } }
+            scope.launch { location.activeSos.collect { publish() } }
+            scope.launch { location.myFix.collect { publish() } }
+            scope.launch {
+                location.sosReceived.collect { a -> _notices.tryEmit("SOS from " + a.name + (if (a.note.isNotBlank()) ": " + a.note else "")) }
+            }
+            lastFix?.let { location.onFix(it) }
             scope.launch {
                 groups.events.collect { e ->
                     when (e) {
@@ -381,6 +434,34 @@ class SrcsController(
         }
     }
 
+    // ------------------------------------------------------------------ location and SOS
+
+    /** New GPS fix from the platform (CoreLocation on iOS). */
+    fun onLocation(lat: Double, lon: Double, accuracyM: Double, atMillis: Long) {
+        val fix = GeoFix(lat, lon, accuracyM.toFloat(), atMillis)
+        lastFix = fix
+        val s = stack
+        if (s != null) s.location.onFix(fix) else publish()
+    }
+
+    /** Opt-in: share with all reachable paired phones and/or the current group for [minutes]. */
+    fun startSharing(toPaired: Boolean, toGroup: Boolean, minutes: Int) {
+        val s = stack ?: run { _notices.tryEmit("Go online first"); return }
+        s.location.startSharing(toPaired, toGroup, minutes.coerceIn(1, 24 * 60) * 60_000L)
+    }
+
+    fun stopSharing() { stack?.location?.stopSharing() }
+
+    fun sendSos(note: String) {
+        scope.launch {
+            val s = stack ?: run { _notices.tryEmit("Go online first: SOS needs at least one phone in range"); return@launch }
+            val n = s.location.sendSos(note)
+            _notices.tryEmit(if (n > 0) "SOS sent to $n phone(s)" else "SOS queued: no paired phone in range yet")
+        }
+    }
+
+    fun dismissSos(alertId: String) { stack?.location?.dismissSos(DeviceId.fromHex(alertId)) }
+
     // ------------------------------------------------------------------ observing (Swift-friendly)
 
     fun watch(onChange: (AppSnapshot) -> Unit): Watcher = Watcher(scope.launch { snapshot.collect { onChange(it) } })
@@ -393,6 +474,7 @@ class SrcsController(
         online = false, busy = false, displayName = name, deviceId = LocalIdentity(keyPair, name).deviceId.hex,
         fingerprint = LocalIdentity(keyPair, name).fingerprint, linkCount = 0, pairings = emptyList(), peers = emptyList(),
         call = null, group = null, invites = emptyList(), messagesVersion = 0, recentLog = emptyList(), radar = emptyList(),
+        location = LocationView(false, false, false, 0, 0, false, 0.0, 0.0, 0), friends = emptyList(), sos = emptyList(),
     )
 
     private fun publish() {
@@ -443,10 +525,36 @@ class SrcsController(
         }
 
         val pairingLinks = links.filter { !it.trusted }
+        val loc = s?.location
+        val myFix = loc?.myFix?.value ?: lastFix
+        val friendLocs = loc?.friends?.value ?: emptyList()
+        val now = currentTimeMillis()
+        fun distText(lat: Double, lon: Double): String = myFix?.let {
+            val d = Geo.distanceM(it.lat, it.lon, lat, lon)
+            Geo.formatDistance(d) + " " + Geo.compass(Geo.bearingDeg(it.lat, it.lon, lat, lon))
+        } ?: ""
+        val geoById = friendLocs.associateBy { it.id.hex }
         val radar = RadarLayout.place(
-            peers.filter { it.reachable }.map { RadarEntry(it.id, it.name, if (it.direct) RadarRing.LINKED else RadarRing.RELAYED, peerId = it.id) } +
-                pairingLinks.map { RadarEntry("link:${it.linkId}", it.remoteName, RadarRing.NEARBY, pairingLinkId = it.linkId) },
+            peers.filter { it.reachable }.map { p ->
+                val f = geoById[p.id]
+                RadarEntry(
+                    p.id, p.name, if (p.direct) RadarRing.LINKED else RadarRing.RELAYED, peerId = p.id,
+                    bearingDeg = if (f != null && myFix != null) Geo.bearingDeg(myFix.lat, myFix.lon, f.lat, f.lon) else null,
+                    distanceM = if (f != null && myFix != null) Geo.distanceM(myFix.lat, myFix.lon, f.lat, f.lon) else null,
+                )
+            } + pairingLinks.map { RadarEntry("link:" + it.linkId, it.remoteName, RadarRing.NEARBY, pairingLinkId = it.linkId) },
         )
+        val sharing = loc?.sharing?.value
+        val locationView = LocationView(
+            sharing?.active == true, sharing?.toPaired == true, sharing?.toGroup == true, sharing?.until ?: 0, sharing?.recipients ?: 0,
+            myFix != null, myFix?.lat ?: 0.0, myFix?.lon ?: 0.0, myFix?.accuracyM?.toInt() ?: 0,
+        )
+        val friends = friendLocs.map { f ->
+            FriendView(f.id.hex, f.name, f.lat, f.lon, f.accuracyM, distText(f.lat, f.lon), ((now - f.fixAt) / 1000).coerceAtLeast(0), f.viaGroup)
+        }
+        val sos = (loc?.activeSos?.value ?: emptyList()).map { a ->
+            SosView(a.alertId.hex, a.name, a.note, a.fix != null, a.fix?.lat ?: 0.0, a.fix?.lon ?: 0.0, a.fix?.let { distText(it.lat, it.lon) } ?: "", a.receivedAt)
+        }
 
         return AppSnapshot(
             online = s != null, busy = busy.value, displayName = name, deviceId = me.deviceId.hex, fingerprint = me.fingerprint,
@@ -456,7 +564,7 @@ class SrcsController(
             invites = s?.groups?.invites?.value?.map { InviteView(it.groupId.hex, it.name, it.fromName, it.mode == GroupMode.PTT) } ?: emptyList(),
             messagesVersion = messageStore.version.value,
             recentLog = log.lines.value.takeLast(80).map { "${it.level.name.first()} ${it.tag}: ${it.message}" },
-            radar = radar,
+            radar = radar, location = locationView, friends = friends, sos = sos,
         )
     }
 

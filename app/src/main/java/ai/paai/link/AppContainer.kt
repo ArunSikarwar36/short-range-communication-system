@@ -8,6 +8,9 @@ import ai.paai.link.core.call.EndReason
 import ai.paai.link.core.crypto.KeyPair
 import ai.paai.link.core.crypto.LocalIdentity
 import ai.paai.link.core.group.GroupManager
+import ai.paai.link.core.location.Geo
+import ai.paai.link.core.location.LocationService
+import ai.paai.link.location.AndroidGps
 import ai.paai.link.core.media.MediaCoordinator
 import ai.paai.link.core.media.MediaHooks
 import ai.paai.link.core.messaging.MessageStatus
@@ -53,6 +56,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -64,6 +70,7 @@ import java.net.InetAddress
  * Application-wide object graph (manual dependency injection). Long-lived state lives here rather
  * than in activities, so a call survives configuration changes and the activity going away.
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AppContainer(val app: Application) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val log = LogBuffer(capacity = 500) { line ->
@@ -110,7 +117,27 @@ class AppContainer(val app: Application) {
         onPeerAddress = { host -> dialAware(host) },
     )
 
+    /** GPS, on only while sharing, sending an SOS, or viewing friends' positions with the app open. */
+    val gps = AndroidGps(app, log) { fix -> _stack.value?.location?.onFix(fix) }
+    private val sosPending = MutableStateFlow(false)
+
     init {
+        scope.launch {
+            kotlinx.coroutines.flow.combine(_stack, appVisible, sosPending) { s, visible, sos -> Triple(s, visible, sos) }
+                .flatMapLatest { (s, visible, sos) ->
+                    if (s == null) flowOf(false)
+                    else kotlinx.coroutines.flow.combine(s.location.sharing, s.location.friends) { sh, friends ->
+                        sh.active || sos || (visible && friends.isNotEmpty())
+                    }
+                }
+                .distinctUntilChanged()
+                .collect { wanted -> withContext(Dispatchers.Main) { gps.setWanted(wanted) } }
+        }
+        scope.launch {
+            _stack.flatMapLatest { s -> s?.location?.sharing?.map { it.active } ?: flowOf(false) }.distinctUntilChanged().collect { on ->
+                if (_stack.value != null) LinkService.setLocationSharing(app, on)
+            }
+        }
         scope.launch(Dispatchers.IO) {
             val (kp, created) = KeystoreIdentity.loadOrCreate(app)
             identityKey = kp
@@ -178,6 +205,20 @@ class AppContainer(val app: Application) {
                 delay(1_000L + attempt * 500)
             }
             log.w("app", "could not reach the group owner's link service at ${owner.hostAddress}")
+        }
+    }
+
+    /** Sends an SOS, first waiting up to 8 s for a GPS fix so the alert can include coordinates. */
+    suspend fun sendSos(note: String): Int {
+        val s = _stack.value ?: return 0
+        sosPending.value = true
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(8_000) {
+                s.location.myFix.first { it != null && System.currentTimeMillis() - it.at < 120_000 }
+            }
+            return s.location.sendSos(note)
+        } finally {
+            sosPending.value = false
         }
     }
 
@@ -282,6 +323,7 @@ class LinkStack(private val c: AppContainer, identity: LocalIdentity, engine: An
         node, c.messageStore, groups, scope,
         MessagingConfig(retentionMs = { c.settings.value.retentionDays * 24L * 3_600_000L }),
     )
+    val location = LocationService(node, groups, scope)
 
     init {
         scope.launch {
@@ -314,11 +356,22 @@ class LinkStack(private val c: AppContainer, identity: LocalIdentity, engine: An
                 if (e is NodeEvent.PairingRequested && !c.appVisible.value) c.notifications.showPairing(e.link.remoteName)
             }
         }
+        scope.launch {
+            location.sosReceived.collect { a ->
+                val me = location.myFix.value
+                val where = a.fix?.let { f ->
+                    if (me != null) Geo.formatDistance(Geo.distanceM(me.lat, me.lon, f.lat, f.lon)) + " " + Geo.compass(Geo.bearingDeg(me.lat, me.lon, f.lat, f.lon))
+                    else "%.5f, %.5f".format(f.lat, f.lon)
+                } ?: "no GPS position"
+                c.notifications.showSos(a.name, a.note, where)
+            }
+        }
     }
 
     suspend fun start() = node.start()
 
     suspend fun stop() {
+        location.stopSharing()
         if (calls.state.value.phase.isLive) calls.hangup()
         groups.leave()
         delay(300) // let the goodbye messages go out

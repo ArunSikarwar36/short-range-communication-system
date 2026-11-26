@@ -4,6 +4,7 @@ import ai.paai.link.core.app.RadarDot
 import ai.paai.link.core.app.RadarEntry
 import ai.paai.link.core.app.RadarLayout
 import ai.paai.link.core.app.RadarRing
+import ai.paai.link.core.location.Geo
 import ai.paai.link.core.util.DeviceId
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -71,12 +72,23 @@ fun RadarCard(vm: LinkViewModel, gate: PermissionGate, onChat: (DeviceId) -> Uni
     val links by vm.links.collectAsStateWithLifecycle()
     val wifi by vm.wifi.collectAsStateWithLifecycle()
     val aware by vm.aware.collectAsStateWithLifecycle()
+    val friends by vm.friendLocations.collectAsStateWithLifecycle()
+    val me by vm.myFix.collectAsStateWithLifecycle()
     var selected by remember { mutableStateOf<RadarDot?>(null) }
 
     val p2pByKey = wifi.peers.filter { it.statusLabel != "Connected" }.associateBy { "p2p:${it.address}" }
     val entries = buildList {
+        val geo = friends.associateBy { it.id }
         peers.filter { it.trusted && it.reachable }.forEach {
-            add(RadarEntry(it.id.hex, it.name, if (it.direct) RadarRing.LINKED else RadarRing.RELAYED, peerId = it.id.hex))
+            val f = geo[it.id]
+            val my = me
+            add(
+                RadarEntry(
+                    it.id.hex, it.name, if (it.direct) RadarRing.LINKED else RadarRing.RELAYED, peerId = it.id.hex,
+                    bearingDeg = if (f != null && my != null) Geo.bearingDeg(my.lat, my.lon, f.lat, f.lon) else null,
+                    distanceM = if (f != null && my != null) Geo.distanceM(my.lat, my.lon, f.lat, f.lon) else null,
+                ),
+            )
         }
         links.filter { !it.trusted }.forEach { add(RadarEntry("link:${it.linkId}", it.remoteName, RadarRing.NEARBY, pairingLinkId = it.linkId)) }
         p2pByKey.forEach { (k, p) -> add(RadarEntry(k, p.name, RadarRing.NEARBY)) }
@@ -113,6 +125,7 @@ fun RadarCard(vm: LinkViewModel, gate: PermissionGate, onChat: (DeviceId) -> Uni
                             contentAlignment = Alignment.Center,
                         ) { Text(d.name.trim().take(1).uppercase().ifEmpty { "?" }, fontWeight = FontWeight.Bold, color = LinkColors.OnSurface) }
                         Text(d.name, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, color = LinkColors.OnSurface)
+                        if (d.distanceM >= 0) Text(Geo.formatDistance(d.distanceM), fontSize = 9.sp, color = LinkColors.Muted)
                     }
                 }
             }
@@ -138,6 +151,7 @@ fun RadarCard(vm: LinkViewModel, gate: PermissionGate, onChat: (DeviceId) -> Uni
             text = {
                 Text(
                     when {
+                        d.distanceM >= 0 -> "${Geo.formatDistance(d.distanceM)} away (GPS). " + if (d.ring == RadarRing.LINKED) "Linked directly." else "Reached through a relay."
                         d.peerId.isNotEmpty() && d.ring == RadarRing.LINKED -> "Linked directly."
                         d.peerId.isNotEmpty() -> "Reached through another phone (relay)."
                         d.pairingLinkId >= 0 -> "Waiting for both phones to confirm the pairing code."

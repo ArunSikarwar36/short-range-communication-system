@@ -42,6 +42,7 @@ object Perms {
     val discovery: Array<String> =
         if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES) else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
     val notifications: Array<String> = if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.POST_NOTIFICATIONS) else emptyArray()
+    val location: Array<String> = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
     val microphone: Array<String> = arrayOf(Manifest.permission.RECORD_AUDIO)
     /** Optional: lets the app list Bluetooth headsets on Android 12+. */
     val bluetooth: Array<String> = if (Build.VERSION.SDK_INT >= 31) arrayOf(Manifest.permission.BLUETOOTH_CONNECT) else emptyArray()
@@ -125,10 +126,12 @@ private data class Rationale(val perms: Array<String>, val reason: String, val t
 
 object Reasons {
     const val DISCOVERY = "To find nearby phones over Wi-Fi Direct, Android requires the Nearby devices permission " +
-        "(Location on Android 12 and older). SRCS does not use or store your location."
+        "(Location on Android 12 and older). Wi-Fi discovery never uses your position; SRCS only reads GPS when you share your location or send an SOS."
     const val MIC = "Calls, group calls and push-to-talk need the microphone. Audio goes only to the devices in the call, encrypted. " +
         "Android may also ask about nearby devices: that lets SRCS send call audio to a Bluetooth headset (optional, asked once)."
     const val NOTIFY = "Notifications show incoming calls, messages and the online status while the app is in the background."
+    const val LOCATION = "To share your position with the phones you choose (and to include it in an SOS), SRCS needs Location. " +
+        "GPS works without internet. Nothing is shared until you start sharing, and you can stop at any time."
 }
 
 @Composable

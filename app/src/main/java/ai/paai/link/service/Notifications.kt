@@ -36,6 +36,12 @@ class Notifications(private val context: Context) {
                 },
                 NotificationChannel(CH_MESSAGES, "Messages", NotificationManager.IMPORTANCE_DEFAULT),
                 NotificationChannel(CH_EVENTS, "Pairing, groups and missed calls", NotificationManager.IMPORTANCE_DEFAULT),
+                NotificationChannel(CH_SOS, "SOS alerts", NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = "Emergency alerts from paired phones and your group"
+                    setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM), AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build())
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 1000, 400, 1000, 400, 1000)
+                },
             ),
         )
     }
@@ -113,6 +119,15 @@ class Notifications(private val context: Context) {
             .setContentIntent(openApp()).build(),
     )
 
+    fun showSos(name: String, note: String, where: String) = post(
+        SOS_ID,
+        NotificationCompat.Builder(context, CH_SOS).setSmallIcon(R.drawable.ic_stat_link)
+            .setContentTitle("SOS from $name")
+            .setContentText(listOf(note, where).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "Needs help" })
+            .setPriority(NotificationCompat.PRIORITY_MAX).setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setAutoCancel(true).setContentIntent(openApp()).build(),
+    )
+
     fun cancelAll() = nm.cancelAll()
 
     @SuppressLint("MissingPermission")
@@ -125,11 +140,13 @@ class Notifications(private val context: Context) {
         const val CH_CALLS = "calls"
         const val CH_MESSAGES = "messages"
         const val CH_EVENTS = "events"
+        const val CH_SOS = "sos"
         const val STATUS_ID = 1
         const val INCOMING_ID = 2
         const val MISSED_ID = 3
         const val GROUP_ID = 4
         const val PAIR_ID = 5
+        const val SOS_ID = 6
         const val MESSAGE_ID_BASE = 1000
     }
 }

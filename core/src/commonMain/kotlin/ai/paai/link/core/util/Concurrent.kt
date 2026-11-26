@@ -74,3 +74,14 @@ class SortedLongMap<V> {
 
     fun clear() { keys.clear(); map.clear() }
 }
+
+/** Remembers the last [capacity] IDs; [add] returns false for an ID already seen. Not thread-safe. */
+class DedupeSet(private val capacity: Int) {
+    private val set = LinkedHashSet<DeviceId>()
+
+    fun add(id: DeviceId): Boolean {
+        if (!set.add(id)) return false
+        if (set.size > capacity) set.remove(set.first())
+        return true
+    }
+}

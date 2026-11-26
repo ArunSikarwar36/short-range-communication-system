@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
  */
 class LinkService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var locationActive = false
     private var micActive = false
     private var observer: Job? = null
     private var statusText = "Online"
@@ -45,6 +46,8 @@ class LinkService : Service() {
             }
             ACTION_MIC_ON -> micActive = true
             ACTION_MIC_OFF -> micActive = false
+            ACTION_LOC_ON -> locationActive = true
+            ACTION_LOC_OFF -> locationActive = false
         }
         promote()
         if (observer == null) observer = observe()
@@ -55,6 +58,10 @@ class LinkService : Service() {
         val container = (application as LinkApplication).container
         var types = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE else 0
         if (micActive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        // Location type only while the user shares their location (keeps GPS updates in the background).
+        if (locationActive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && container.gps.hasPermission()) {
+            types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+        }
         try {
             ServiceCompat.startForeground(this, Notifications.STATUS_ID, container.notifications.status(statusText, micActive), types)
         } catch (e: Exception) {
@@ -98,10 +105,13 @@ class LinkService : Service() {
         private const val ACTION_STOP = "ai.paai.link.STOP"
         private const val ACTION_MIC_ON = "ai.paai.link.MIC_ON"
         private const val ACTION_MIC_OFF = "ai.paai.link.MIC_OFF"
+        private const val ACTION_LOC_ON = "ai.paai.link.LOC_ON"
+        private const val ACTION_LOC_OFF = "ai.paai.link.LOC_OFF"
 
         fun start(context: Context) = send(context, ACTION_START)
         fun stop(context: Context) = runCatching { context.startService(Intent(context, LinkService::class.java).setAction(ACTION_STOP)) }
         fun setMicrophone(context: Context, on: Boolean) = send(context, if (on) ACTION_MIC_ON else ACTION_MIC_OFF)
+        fun setLocationSharing(context: Context, on: Boolean) = send(context, if (on) ACTION_LOC_ON else ACTION_LOC_OFF)
 
         private fun send(context: Context, action: String) {
             try {

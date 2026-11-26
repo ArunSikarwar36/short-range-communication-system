@@ -9,8 +9,12 @@ struct HomeScreen: View {
         NavigationStack {
             List {
                 statusSection
+                if !(model.snap?.sos.isEmpty ?? true) {
+                    Section { SosBanner() }
+                }
                 if model.snap?.online == true {
                     Section("Nearby radar") { RadarView() }
+                    LocationSection()
                 }
                 if let g = model.snap?.group {
                     Section {
