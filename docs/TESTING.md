@@ -26,6 +26,7 @@ $env:GRADLE_USER_HOME = "D:\android-build\gradle-home"
 | `UiSmokeTest` (device) | App launches and renders |
 | `CryptoVectorsTest` | RFC 4231 / 7748 / 8439 and FIPS 180 vectors for SHA-256, HMAC, X25519, Poly1305, ChaCha20-Poly1305 on the platform crypto and on PortableCrypto |
 | `PortableCryptoTest` (JVM) | PortableCrypto (used on iOS) equals Bouncy Castle on random inputs, tampering rejected |
+| `DjTest` | DJ Mode across 3 phones: members hear the host's song, pause is silent at once, resume, song request reaches the DJ, stop releases all audio |
 | `PmtilesTest` | PMTiles Hilbert tile IDs, directory and header round trip, area extraction keeps exactly the area's tiles (with leaf directories and repeated tiles), cancel leaves no file |
 | `GeoTest`, `LocationTest` | Distance/bearing maths; opt-in sharing, rate limit, stop removes the position, group positions via the host, SOS delivered once |
 | `WifiJoinTest`, `QrTest` | Wi-Fi QR text and escaping; the QR code decodes back to the same text |

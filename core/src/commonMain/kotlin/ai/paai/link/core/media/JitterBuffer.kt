@@ -110,6 +110,15 @@ class JitterBuffer(
         }
     }
 
+    /** Drops everything buffered (DJ Mode pause / next song); playback re-buffers from the next packet. */
+    fun clear() {
+        lock.withLock {
+            packets.clear()
+            playing = false
+            missingRun = 0
+        }
+    }
+
     companion object {
         const val RESET_AFTER_MS = 200
     }

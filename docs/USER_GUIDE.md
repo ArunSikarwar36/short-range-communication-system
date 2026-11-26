@@ -62,6 +62,13 @@ and *Read*.
 - GPS works without internet. SRCS only turns it on while you share, send an SOS, or look at
   friends' positions.
 
+## DJ Mode
+- In a group, the **host** opens the group screen → **Start DJ Mode** → **Add songs** (from the phone).
+  Everyone in the group hears the music on their own phone; the host has Play/Pause, Next and End.
+- Members see what is playing and can **Request a song**; requests appear on the host's screen.
+- Walkie-talkie keeps working while music plays. Only music on the host's phone is shared — respect
+  the rights of the music you play.
+
 ## Offline maps
 - Tap the map icon on the home screen, then **Map areas**. With internet (once), pick the centre
   (your GPS position is filled in), a radius, **Check size**, then **Download**. A 5 km area of a city

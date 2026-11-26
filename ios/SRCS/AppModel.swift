@@ -11,6 +11,9 @@ final class AppModel: ObservableObject {
     @Published var onboarded: Bool { didSet { defaults.set(onboarded, forKey: "onboarded") } }
     @Published var displayName: String
     @Published var speakerOn = false
+    /// DJ Mode playlist (songs copied into the app so they stay readable).
+    @Published private(set) var playlist: [Song] = []
+    @Published private(set) var playlistIndex = -1
     @Published var autoConnect: Bool {
         didSet {
             defaults.set(autoConnect, forKey: "autoConnect")
@@ -64,7 +67,13 @@ final class AppModel: ObservableObject {
     }
 
     private func apply(_ s: AppSnapshot) {
+        let wasEnded = snap?.dj.ended ?? false
         snap = s
+        // Play the next song when one ends.
+        if s.dj.role == "DJ" && s.dj.ended && !wasEnded && playlistIndex + 1 < playlist.count {
+            djPlay(playlistIndex + 1)
+        }
+        if s.dj.role == "NONE" && playlistIndex >= 0 { playlistIndex = -1 }
         let live = s.call?.live == true
         UIApplication.shared.isIdleTimerDisabled = live || s.group != nil
         UIDevice.current.isProximityMonitoringEnabled = live && !speakerOn
@@ -76,6 +85,34 @@ final class AppModel: ObservableObject {
         let sharing = snap?.location.sharing == true
         let friends = !(snap?.friends.isEmpty ?? true)
         gps.setWanted(sharing || sosPending || friends || mapOpen, inBackground: sharing)
+    }
+
+    // MARK: - DJ Mode
+
+    func djAddSongs(_ urls: [URL]) {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("music", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        var added: [Song] = []
+        for url in urls {
+            let ok = url.startAccessingSecurityScopedResource()
+            defer { if ok { url.stopAccessingSecurityScopedResource() } }
+            let copy = dir.appendingPathComponent(UUID().uuidString + "-" + url.lastPathComponent)
+            if (try? FileManager.default.copyItem(at: url, to: copy)) != nil { added.append(Song.load(copy)) }
+        }
+        let first = playlist.count
+        playlist.append(contentsOf: added)
+        if playlistIndex < 0 && !added.isEmpty && (snap?.dj.title.isEmpty ?? true) { djPlay(first) }
+    }
+
+    func djPlay(_ index: Int) {
+        guard index >= 0 && index < playlist.count else { return }
+        let song = playlist[index]
+        guard let source = IOSMusicSource(url: song.url) else {
+            show("Cannot play '\(song.title)'")
+            return
+        }
+        playlistIndex = index
+        controller.djPlay(title: song.title, artist: song.artist, durationMs: song.durationMs, source: source)
     }
 
     /// The map screens show this phone's position, so GPS runs while they are open.

@@ -17,6 +17,18 @@ sense yet. Everything below the radio and the real microphone/speaker is built a
 | 6 Relay | DSDV routing, TTL/hop limit, loop prevention, route expiry/withdrawal, dedupe, relay authorisation (paired only), per-source rate limit, battery policy, topology screen | Line-topology routing tests; relayed messages and calls; withdrawal when relay disappears | A–B–C range extension in the field; battery/throughput impact. Multi-group bridging is not possible with standard Wi-Fi Direct (see ARCHITECTURE.md) |
 | 7 Hardening & release | Threat model, fuzz tests, lint clean, R8 release build, signing setup, data excluded from backup, user guide | Protocol fuzzing (20k random + mutations), lint | Compatibility matrix, long-call and battery tests, independent security review, release key |
 
+## DJ Mode (2026-11-26)
+- **Built on Android and iPhone.** The group host picks songs on the phone (any format the phone
+  decodes) and every member hears them: Opus tuned for music (48 kHz mono, 64 kbit/s), encrypted,
+  sent straight to each member, ~300 ms buffer so phones play together closely. Play / pause /
+  next / end, playlist with automatic next song, song requests from members. Pausing or changing
+  song clears every listener's buffer, so it takes effect at once. Music plays on the media stream
+  (media volume) next to walkie-talkie voice.
+- **Limits:** only the group host can DJ (it is directly linked to every member); mono; songs only
+  from the phone (no capture from other apps); no album art yet.
+- **Tested:** `DjTest` (two listeners hear the song, pause is silent, resume, request reaches the DJ,
+  stop releases all audio), full core suite 80 tests; Android and iPhone builds. Not yet heard on phones.
+
 ## Offline maps (2026-11-26)
 - **Built on Android and iPhone.** Download an area around a position once (2 / 5 / 15 / 30 km,
   street detail up to 8 km) from the newest Protomaps world build, or import a `.pmtiles` file; the

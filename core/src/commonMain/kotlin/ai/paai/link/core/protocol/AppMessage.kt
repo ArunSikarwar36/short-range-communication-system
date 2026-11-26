@@ -128,6 +128,19 @@ sealed class AppMessage(val code: Int) {
         val until: Long,
     ) : AppMessage(50)
     data class LocationStop(val subject: DeviceId, val groupId: DeviceId) : AppMessage(51)
+
+    // --- DJ Mode: the group host streams music to the group (older apps ignore these codes) ---
+    data class DjStart(val sessionId: DeviceId, val groupId: DeviceId, val djName: String, val mediaKey: ByteArray, val codec: CodecConfig) : AppMessage(60) {
+        override fun equals(other: Any?) = other is DjStart && other.sessionId == sessionId && other.groupId == groupId &&
+            other.djName == djName && other.mediaKey.contentEquals(mediaKey) && other.codec == codec
+        override fun hashCode() = sessionId.hashCode()
+        override fun toString() = "DjStart($sessionId)"
+    }
+    data class DjTrack(val sessionId: DeviceId, val trackId: DeviceId, val title: String, val artist: String, val durationMs: Long) : AppMessage(61)
+    data class DjPlayback(val sessionId: DeviceId, val playing: Boolean, val positionMs: Long) : AppMessage(62)
+    data class DjStop(val sessionId: DeviceId) : AppMessage(63)
+    /** A listener asks the DJ for a song. */
+    data class DjRequest(val sessionId: DeviceId, val text: String) : AppMessage(64)
     /** Emergency alert. [hasFix] is false when no GPS position is available; coordinates are then 0. */
     data class Sos(
         val alertId: DeviceId,
@@ -180,6 +193,11 @@ sealed class AppMessage(val code: Int) {
             is Location -> w.id(subject).string(subjectName, ProtocolLimits.MAX_NAME_BYTES).id(groupId).i32(latE7).i32(lonE7)
                 .u16(accuracyM.coerceIn(0, 65535)).u64(fixAt).u64(until)
             is LocationStop -> w.id(subject).id(groupId)
+            is DjStart -> { w.id(sessionId).id(groupId).string(djName, ProtocolLimits.MAX_NAME_BYTES).fixed(mediaKey, 32); codec.write(w) }
+            is DjTrack -> w.id(sessionId).id(trackId).string(title, MAX_TITLE_BYTES).string(artist, MAX_TITLE_BYTES).u64(durationMs)
+            is DjPlayback -> w.id(sessionId).bool(playing).u64(positionMs)
+            is DjStop -> w.id(sessionId)
+            is DjRequest -> w.id(sessionId).string(text, MAX_TITLE_BYTES)
             is Sos -> w.id(alertId).id(subject).string(subjectName, ProtocolLimits.MAX_NAME_BYTES).id(groupId).bool(hasFix)
                 .i32(latE7).i32(lonE7).u16(accuracyM.coerceIn(0, 65535)).u64(fixAt).string(note, MAX_SOS_NOTE_BYTES)
         }
@@ -188,6 +206,7 @@ sealed class AppMessage(val code: Int) {
 
     companion object {
         const val MAX_SOS_NOTE_BYTES = 280
+        const val MAX_TITLE_BYTES = 200
 
         private fun checkCoordinates(latE7: Int, lonE7: Int) {
             if (latE7 !in -900_000_000..900_000_000 || lonE7 !in -1_800_000_000..1_800_000_000) throw ProtocolException("coordinates out of range")
@@ -235,6 +254,11 @@ sealed class AppMessage(val code: Int) {
                 40 -> MediaReport(r.id(), r.u16(), r.u16())
                 50 -> Location(r.id(), r.string(ProtocolLimits.MAX_NAME_BYTES), r.id(), r.i32(), r.i32(), r.u16(), r.u64(), r.u64()).also { it.validate() }
                 51 -> LocationStop(r.id(), r.id())
+                60 -> DjStart(r.id(), r.id(), r.string(ProtocolLimits.MAX_NAME_BYTES), r.fixed(32), CodecConfig.read(r))
+                61 -> DjTrack(r.id(), r.id(), r.string(MAX_TITLE_BYTES), r.string(MAX_TITLE_BYTES), r.u64())
+                62 -> DjPlayback(r.id(), r.bool(), r.u64())
+                63 -> DjStop(r.id())
+                64 -> DjRequest(r.id(), r.string(MAX_TITLE_BYTES))
                 52 -> Sos(r.id(), r.id(), r.string(ProtocolLimits.MAX_NAME_BYTES), r.id(), r.bool(), r.i32(), r.i32(), r.u16(), r.u64(), r.string(MAX_SOS_NOTE_BYTES))
                     .also { if (it.hasFix) checkCoordinates(it.latE7, it.lonE7) }
                 else -> throw ProtocolException("unknown app message $code")
@@ -259,7 +283,7 @@ object SealedPayload {
     }
 }
 
-enum class MediaKind(val code: Int) { VOICE(1), PROBE(2);
+enum class MediaKind(val code: Int) { VOICE(1), PROBE(2), MUSIC(3);
     companion object { fun of(c: Int) = entries.firstOrNull { it.code == c } ?: throw ProtocolException("bad media kind") }
 }
 

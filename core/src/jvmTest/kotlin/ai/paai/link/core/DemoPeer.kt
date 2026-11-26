@@ -168,6 +168,8 @@ private class EchoEngine : AudioEngine {
         override fun close() { queue.clear() }
     }
 
+    override fun musicEncoder(codec: CodecConfig) = encoder(codec)
+    override fun musicPlayback(codec: CodecConfig) = playback(codec)
     override fun decoder(codec: CodecConfig) = object : AudioDecoder {
         override fun decode(packet: ByteArray?, out: ShortArray, fec: Boolean): Int {
             if (packet != null && queue.size < 50) queue.add(packet.copyOf())

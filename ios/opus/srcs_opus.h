@@ -8,6 +8,8 @@
 
 /* Mono VoIP encoder with in-band FEC (10 % expected loss), complexity 5, no DTX. NULL on failure. */
 void *srcs_enc_create(int32_t sample_rate, int32_t channels, int32_t bitrate);
+/* DJ Mode: Opus tuned for music (OPUS_APPLICATION_AUDIO, complexity 8). */
+void *srcs_enc_create_music(int32_t sample_rate, int32_t channels, int32_t bitrate);
 int32_t srcs_enc_set_bitrate(void *enc, int32_t bitrate);
 /* Returns the packet length in bytes, or a negative Opus error. */
 int32_t srcs_enc_encode(void *enc, const int16_t *pcm, int32_t frame_size, uint8_t *out, int32_t max_bytes);

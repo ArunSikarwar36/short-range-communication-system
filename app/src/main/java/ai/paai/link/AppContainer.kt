@@ -7,6 +7,7 @@ import ai.paai.link.core.call.CallPhase
 import ai.paai.link.core.call.EndReason
 import ai.paai.link.core.crypto.KeyPair
 import ai.paai.link.core.crypto.LocalIdentity
+import ai.paai.link.core.dj.DjService
 import ai.paai.link.core.group.GroupManager
 import ai.paai.link.core.location.Geo
 import ai.paai.link.core.location.LocationService
@@ -329,6 +330,7 @@ class LinkStack(private val c: AppContainer, identity: LocalIdentity, engine: An
         MessagingConfig(retentionMs = { c.settings.value.retentionDays * 24L * 3_600_000L }),
     )
     val location = LocationService(node, groups, scope)
+    val dj = DjService(node, groups, media, engine, scope)
 
     init {
         scope.launch {
@@ -377,6 +379,7 @@ class LinkStack(private val c: AppContainer, identity: LocalIdentity, engine: An
 
     suspend fun stop() {
         location.stopSharing()
+        dj.stop()
         if (calls.state.value.phase.isLive) calls.hangup()
         groups.leave()
         delay(300) // let the goodbye messages go out

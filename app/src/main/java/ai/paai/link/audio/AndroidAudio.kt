@@ -24,6 +24,7 @@ object OpusNative {
     }
 
     @JvmStatic external fun encoderCreate(sampleRate: Int, channels: Int, bitrate: Int): Long
+    @JvmStatic external fun encoderCreateMusic(sampleRate: Int, channels: Int, bitrate: Int): Long
     @JvmStatic external fun encoderSetBitrate(handle: Long, bitrate: Int): Int
     @JvmStatic external fun encode(handle: Long, pcm: ShortArray, frameSize: Int, out: ByteArray): Int
     @JvmStatic external fun encoderDestroy(handle: Long)
@@ -33,8 +34,8 @@ object OpusNative {
     @JvmStatic external fun version(): String
 }
 
-class OpusEncoder(private val codec: CodecConfig) : AudioEncoder {
-    private var handle = OpusNative.encoderCreate(codec.sampleRate, 1, codec.bitrate)
+class OpusEncoder(private val codec: CodecConfig, music: Boolean = false) : AudioEncoder {
+    private var handle = if (music) OpusNative.encoderCreateMusic(codec.sampleRate, 1, codec.bitrate) else OpusNative.encoderCreate(codec.sampleRate, 1, codec.bitrate)
 
     init {
         check(handle != 0L) { "Opus encoder could not be created" }
@@ -124,7 +125,8 @@ class AndroidCapture(private val codec: CodecConfig) : AudioCapture {
     }
 }
 
-class AndroidPlayback(private val codec: CodecConfig) : AudioPlayback {
+/** [music]: DJ Mode on the media stream (media volume, music quality); otherwise the call stream. */
+class AndroidPlayback(private val codec: CodecConfig, private val music: Boolean = false) : AudioPlayback {
     private val track: AudioTrack
 
     init {
@@ -132,8 +134,8 @@ class AndroidPlayback(private val codec: CodecConfig) : AudioPlayback {
         track = AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .setUsage(if (music) AudioAttributes.USAGE_MEDIA else AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    .setContentType(if (music) AudioAttributes.CONTENT_TYPE_MUSIC else AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build(),
             )
             .setAudioFormat(
@@ -144,8 +146,8 @@ class AndroidPlayback(private val codec: CodecConfig) : AudioPlayback {
                     .build(),
             )
             .setTransferMode(AudioTrack.MODE_STREAM)
-            .setBufferSizeInBytes(maxOf(min, codec.frameSamples * 2 * 3))
-            .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+            .setBufferSizeInBytes(maxOf(min, codec.frameSamples * 2 * (if (music) 6 else 3)))
+            .setPerformanceMode(if (music) AudioTrack.PERFORMANCE_MODE_NONE else AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
             .build()
     }
 
@@ -165,5 +167,7 @@ class AndroidAudioEngine : AudioEngine {
     override fun playback(codec: CodecConfig): AudioPlayback = AndroidPlayback(codec)
     override fun encoder(codec: CodecConfig): AudioEncoder = OpusEncoder(codec)
     override fun decoder(codec: CodecConfig): AudioDecoder = OpusDecoder(codec)
+    override fun musicEncoder(codec: CodecConfig): AudioEncoder = OpusEncoder(codec, music = true)
+    override fun musicPlayback(codec: CodecConfig): AudioPlayback = AndroidPlayback(codec, music = true)
     override fun onAudioThreadStart() = Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
 }

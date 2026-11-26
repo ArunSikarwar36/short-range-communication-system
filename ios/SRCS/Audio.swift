@@ -284,8 +284,8 @@ final class OpusEnc: NSObject, AudioEncoder {
     private var input: [Int16]
     private var output = [UInt8](repeating: 0, count: 1500)
 
-    init(codec: CodecConfig) {
-        handle = srcs_enc_create(codec.sampleRate, 1, codec.bitrate)
+    init(codec: CodecConfig, music: Bool = false) {
+        handle = music ? srcs_enc_create_music(codec.sampleRate, 1, codec.bitrate) : srcs_enc_create(codec.sampleRate, 1, codec.bitrate)
         input = [Int16](repeating: 0, count: Int(codec.frameSamples))
     }
 
@@ -366,6 +366,8 @@ final class IOSAudioEngine: NSObject, AudioEngine {
     func playback(codec: CodecConfig) -> AudioPlayback { SpeakerPlayback(codec: codec) }
     func encoder(codec: CodecConfig) -> AudioEncoder { OpusEnc(codec: codec) }
     func decoder(codec: CodecConfig) -> AudioDecoder { OpusDec(codec: codec) }
+    func musicEncoder(codec: CodecConfig) -> AudioEncoder { OpusEnc(codec: codec, music: true) }
+    func musicPlayback(codec: CodecConfig) -> AudioPlayback { MusicPlayback(codec: codec) }
     func onAudioThreadStart() {}
 }
 

@@ -28,7 +28,7 @@ class MediaCoordinator(
     private val clock: () -> Long = ::currentTimeMillis,
 ) {
     private val lock = Lock()
-    private val router = MediaRouter(node, scope)
+    val router = MediaRouter(node, scope)
     private val _active = MutableStateFlow<VoiceSession?>(null)
     val active: StateFlow<VoiceSession?> = _active.asStateFlow()
 

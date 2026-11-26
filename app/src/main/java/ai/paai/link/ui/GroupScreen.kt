@@ -198,6 +198,7 @@ private fun ActiveGroup(vm: LinkViewModel, onChat: (DeviceId) -> Unit) {
                 Hint("Hold to talk · release to listen")
             }
         }
+        if (g.status == GroupStatus.ACTIVE) item { DjCard(vm, isHost = g.role == ai.paai.link.core.group.GroupRole.HOST) }
         if (g.mode == GroupMode.CALL) item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(onClick = { muted = !muted; vm.setGroupMuted(muted) }) {

@@ -21,11 +21,14 @@ struct GroupScreen: View {
                             }
                         }
                     }
+                    if g.status == "ACTIVE" {
+                        DjSection(isHost: g.isHost)
+                    }
                     if g.status != "ACTIVE" {
                         Text(g.status == "JOINING" ? "Joining…" : "Host lost — reconnecting…").foregroundStyle(.orange)
                     }
                 }
-                .frame(maxHeight: 320)
+                .frame(maxHeight: 460)
 
                 if g.isPtt {
                     Text(pttLine(g)).font(.headline).accessibilityIdentifier("pttStatus")

@@ -22,6 +22,21 @@ Java_ai_paai_link_audio_OpusNative_encoderCreate(JNIEnv *env, jclass clazz,
     return (jlong) (intptr_t) enc;
 }
 
+/* DJ Mode: Opus tuned for music (full band, higher complexity). */
+JNIEXPORT jlong JNICALL
+Java_ai_paai_link_audio_OpusNative_encoderCreateMusic(JNIEnv *env, jclass clazz,
+                                                      jint sampleRate, jint channels, jint bitrate) {
+    int err = 0;
+    OpusEncoder *enc = opus_encoder_create(sampleRate, channels, OPUS_APPLICATION_AUDIO, &err);
+    if (err != OPUS_OK || enc == NULL) return 0;
+    opus_encoder_ctl(enc, OPUS_SET_BITRATE(bitrate));
+    opus_encoder_ctl(enc, OPUS_SET_SIGNAL(OPUS_SIGNAL_MUSIC));
+    opus_encoder_ctl(enc, OPUS_SET_INBAND_FEC(1));
+    opus_encoder_ctl(enc, OPUS_SET_PACKET_LOSS_PERC(5));
+    opus_encoder_ctl(enc, OPUS_SET_COMPLEXITY(8));
+    return (jlong) (intptr_t) enc;
+}
+
 JNIEXPORT jint JNICALL
 Java_ai_paai_link_audio_OpusNative_encoderSetBitrate(JNIEnv *env, jclass clazz, jlong handle, jint bitrate) {
     if (handle == 0) return OPUS_BAD_ARG;

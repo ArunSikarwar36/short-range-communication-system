@@ -38,6 +38,10 @@ interface AudioEngine {
     fun playback(codec: CodecConfig): AudioPlayback
     fun encoder(codec: CodecConfig): AudioEncoder
     fun decoder(codec: CodecConfig): AudioDecoder
+    /** Opus tuned for music (DJ Mode) rather than speech. */
+    fun musicEncoder(codec: CodecConfig): AudioEncoder
+    /** Playback on the media stream (music quality, follows the media volume), not the call stream. */
+    fun musicPlayback(codec: CodecConfig): AudioPlayback
     /** Called first on each audio thread (Android raises the thread to audio priority). */
     fun onAudioThreadStart() {}
 }

@@ -345,9 +345,13 @@ class VoiceSession(
 /** Dispatches incoming media packets and receiver reports to the active sessions. */
 class MediaRouter(private val node: LinkNode, scope: CoroutineScope) {
     private val sessions = ConcurrentMap<DeviceId, VoiceSession>()
+    private val handlers = ConcurrentMap<DeviceId, (MediaPacket) -> Unit>()
 
     init {
-        node.mediaHandler = { pkt -> sessions[pkt.sessionId]?.onPacket(pkt) }
+        node.mediaHandler = { pkt ->
+            val s = sessions[pkt.sessionId]
+            if (s != null) s.onPacket(pkt) else handlers[pkt.sessionId]?.invoke(pkt)
+        }
         scope.launch {
             node.incoming.collect { inc ->
                 val m = inc.message
@@ -358,4 +362,8 @@ class MediaRouter(private val node: LinkNode, scope: CoroutineScope) {
 
     fun register(session: VoiceSession) { sessions[session.sessionId] = session }
     fun unregister(session: VoiceSession) { sessions.remove(session.sessionId, session) }
+
+    /** Other media consumers (DJ Mode) receive the packets of their session ID. */
+    fun registerHandler(sessionId: DeviceId, handler: (MediaPacket) -> Unit) { handlers[sessionId] = handler }
+    fun unregisterHandler(sessionId: DeviceId) { handlers.remove(sessionId) }
 }

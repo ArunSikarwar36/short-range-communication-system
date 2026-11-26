@@ -5,6 +5,10 @@ import ai.paai.link.core.call.CallPhase
 import ai.paai.link.core.call.CallTimer
 import ai.paai.link.core.crypto.KeyPair
 import ai.paai.link.core.crypto.LocalIdentity
+import ai.paai.link.core.dj.DjRole
+import ai.paai.link.core.dj.DjService
+import ai.paai.link.core.dj.DjTrackInfo
+import ai.paai.link.core.dj.MusicSource
 import ai.paai.link.core.group.GroupEvent
 import ai.paai.link.core.group.GroupManager
 import ai.paai.link.core.group.GroupRole
@@ -145,6 +149,21 @@ data class LocationView(
     val accuracyM: Int,
 )
 
+data class DjView(
+    /** NONE, DJ or LISTENER. */
+    val role: String,
+    val djName: String,
+    val title: String,
+    val artist: String,
+    val playing: Boolean,
+    val ended: Boolean,
+    val positionMs: Long,
+    val durationMs: Long,
+    val listeners: Int,
+    /** "Name: request" lines, newest last. */
+    val requests: List<String>,
+)
+
 data class AppSnapshot(
     val online: Boolean,
     val busy: Boolean,
@@ -168,6 +187,7 @@ data class AppSnapshot(
     /** Offline map areas on this phone, and the current map download. */
     val mapAreas: List<MapRegion>,
     val mapDownload: MapDownloadView,
+    val dj: DjView,
 )
 
 /** Returned by the watch functions; call [cancel] to stop receiving updates. */
@@ -230,6 +250,7 @@ class SrcsController(
         val groups = GroupManager(node, media, scope, isCallActive = { calls.state.value.phase.isLive })
         val messaging = MessagingService(node, messageStore, groups, scope)
         val location = LocationService(node, groups, scope)
+        val dj = DjService(node, groups, media, audio, scope)
 
         fun watchAll() {
             scope.launch { node.linkInfos.collect { publish() } }
@@ -241,6 +262,7 @@ class SrcsController(
             scope.launch { groups.ptt.collect { publish() } }
             scope.launch { groups.invites.collect { publish() } }
             scope.launch { location.sharing.collect { publish() } }
+            scope.launch { dj.state.collect { publish() } }
             scope.launch { location.friends.collect { publish() } }
             scope.launch { location.activeSos.collect { publish() } }
             scope.launch { location.myFix.collect { publish() } }
@@ -307,6 +329,7 @@ class SrcsController(
         try {
             stack = null
             if (s.calls.state.value.phase.isLive) s.calls.hangup()
+            s.dj.stop()
             s.groups.leave()
             delay(300) // let goodbye messages go out
             s.node.stop()
@@ -468,6 +491,36 @@ class SrcsController(
 
     fun dismissSos(alertId: String) { stack?.location?.dismissSos(DeviceId.fromHex(alertId)) }
 
+    // ------------------------------------------------------------------ DJ Mode
+
+    /** Group host: start DJ Mode for the group. */
+    fun djStart() {
+        scope.launch { stack?.dj?.start()?.onFailure { _notices.tryEmit(it.message ?: "Could not start DJ Mode") } }
+    }
+
+    /** Group host: play a song decoded by the platform (the service closes [source]). */
+    fun djPlay(title: String, artist: String, durationMs: Long, source: MusicSource) {
+        scope.launch {
+            val dj = stack?.dj
+            if (dj == null) { source.close(); return@launch }
+            dj.play(DjTrackInfo(DeviceId.random(), title.take(80), artist.take(80), durationMs), source)
+        }
+    }
+
+    fun djPauseResume() {
+        scope.launch {
+            val dj = stack?.dj ?: return@launch
+            if (dj.state.value.playing) dj.pause() else dj.resume()
+        }
+    }
+
+    fun djStop() { scope.launch { stack?.dj?.stop() } }
+    fun djRequest(text: String) { scope.launch { stack?.dj?.request(text) } }
+    fun djClearRequests() {
+        val dj = stack?.dj ?: return
+        dj.state.value.requests.forEach { dj.clearRequest(it) }
+    }
+
     // ------------------------------------------------------------------ offline maps
 
     /** Map areas live in <dataDir>/maps. */
@@ -495,7 +548,7 @@ class SrcsController(
         fingerprint = LocalIdentity(keyPair, name).fingerprint, linkCount = 0, pairings = emptyList(), peers = emptyList(),
         call = null, group = null, invites = emptyList(), messagesVersion = 0, recentLog = emptyList(), radar = emptyList(),
         location = LocationView(false, false, false, 0, 0, false, 0.0, 0.0, 0), friends = emptyList(), sos = emptyList(),
-        mapAreas = emptyList(), mapDownload = MapDownloadView("IDLE"),
+        mapAreas = emptyList(), mapDownload = MapDownloadView("IDLE"), dj = NO_DJ,
     )
 
     private fun publish() {
@@ -587,6 +640,12 @@ class SrcsController(
             recentLog = log.lines.value.takeLast(80).map { "${it.level.name.first()} ${it.tag}: ${it.message}" },
             radar = radar, location = locationView, friends = friends, sos = sos,
             mapAreas = maps.list.value, mapDownload = maps.download.value,
+            dj = s?.dj?.state?.value?.let { d ->
+                DjView(
+                    d.role.name, d.djName, d.track?.title ?: "", d.track?.artist ?: "", d.playing, d.ended, d.positionMs,
+                    d.track?.durationMs ?: 0, d.listeners, d.requests.map { it.name + ": " + it.text },
+                )
+            } ?: NO_DJ,
         )
     }
 
@@ -614,6 +673,7 @@ class SrcsController(
 
     companion object {
         private const val TAG = "app"
+        private val NO_DJ = DjView(DjRole.NONE.name, "", "", "", false, false, 0, 0, 0, emptyList())
 
         /** Swift entry point (Swift cannot use Kotlin default arguments). */
         fun create(dataDir: String, privateKey: ByteArray, displayName: String, audio: AudioEngine, hooks: MediaHooks): SrcsController =

@@ -114,6 +114,10 @@ class FakeAudioEngine(private val value: Short) : AudioEngine {
             override fun close() { decodersClosed.incrementAndFetch() }
         }
     }
+
+    // DJ Mode uses the same fake codec and playback (heard values are recorded the same way).
+    override fun musicEncoder(codec: CodecConfig): AudioEncoder = encoder(codec)
+    override fun musicPlayback(codec: CodecConfig): AudioPlayback = playback(codec)
 }
 
 val FAST_TIMERS: (CallTimer) -> Long = {

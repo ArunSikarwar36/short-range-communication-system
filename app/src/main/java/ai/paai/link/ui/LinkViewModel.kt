@@ -1,5 +1,6 @@
 package ai.paai.link.ui
 
+import kotlinx.coroutines.flow.MutableStateFlow
 import ai.paai.link.LinkApplication
 import ai.paai.link.audio.AudioRoute
 import ai.paai.link.core.call.CallState
@@ -80,6 +81,60 @@ class LinkViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun dismissSos(id: ai.paai.link.core.util.DeviceId) { c.stack.value?.location?.dismissSos(id) }
+
+    // ------------------------------------------------------------------ DJ Mode
+
+    val djState = c.stack.flatMapLatest { it?.dj?.state ?: flowOf(ai.paai.link.core.dj.DjState()) }.state(ai.paai.link.core.dj.DjState())
+    private val _playlist = MutableStateFlow<List<ai.paai.link.audio.SongInfo>>(emptyList())
+    val playlist: StateFlow<List<ai.paai.link.audio.SongInfo>> = _playlist
+    private val _playlistIndex = MutableStateFlow(-1)
+    val playlistIndex: StateFlow<Int> = _playlistIndex
+
+    init {
+        // Play the next song when one ends.
+        viewModelScope.launch {
+            djState.collect { s ->
+                if (s.role == ai.paai.link.core.dj.DjRole.DJ && s.ended) {
+                    val next = _playlistIndex.value + 1
+                    if (next < _playlist.value.size) djPlay(next)
+                }
+            }
+        }
+    }
+
+    fun djStart() = launch { c.stack.value?.dj?.start()?.onFailure { toast(it.message ?: "Could not start DJ Mode") } }
+
+    fun djAddSongs(uris: List<android.net.Uri>) = launch {
+        val songs = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { uris.map { ai.paai.link.audio.SongInfoReader.read(c.app, it) } }
+        _playlist.value = _playlist.value + songs
+        if (_playlistIndex.value < 0 && djState.value.track == null) djPlay(_playlist.value.size - songs.size)
+    }
+
+    fun djPlay(index: Int) = launch {
+        val s = _playlist.value.getOrNull(index) ?: return@launch
+        val dj = c.stack.value?.dj ?: return@launch
+        val source = try {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ai.paai.link.audio.AndroidMusicSource(c.app, s.uri) }
+        } catch (e: Exception) {
+            return@launch toast("Cannot play '${s.title}': ${e.message}")
+        }
+        _playlistIndex.value = index
+        dj.play(ai.paai.link.core.dj.DjTrackInfo(ai.paai.link.core.util.DeviceId.random(), s.title, s.artist, s.durationMs), source)
+    }
+
+    fun djPauseResume() = launch {
+        val dj = c.stack.value?.dj ?: return@launch
+        if (dj.state.value.playing) dj.pause() else dj.resume()
+    }
+
+    fun djStop() = launch {
+        c.stack.value?.dj?.stop()
+        _playlistIndex.value = -1
+    }
+
+    fun djRequest(text: String) = launch { c.stack.value?.dj?.request(text) }
+
+    fun djClearRequest(r: ai.paai.link.core.dj.DjRequestInfo) { c.stack.value?.dj?.clearRequest(r) }
     val logs = c.log.lines
     val route = c.audioRouter.state
 
