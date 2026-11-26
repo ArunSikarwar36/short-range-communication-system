@@ -71,7 +71,6 @@ jobs:
     name: iPhone app (unsigned IPA + simulator test)
     runs-on: macos-latest
     timeout-minutes: 75
-    needs: ios-core
     env:
       SRCS_CORE_ONLY: "1"
     steps:

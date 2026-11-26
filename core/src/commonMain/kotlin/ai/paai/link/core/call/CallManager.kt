@@ -205,9 +205,12 @@ class CallManager(
         lastKeepaliveAt = 0
         monitor = scope.launch {
             var tick = 0
+            // At least three keepalives per stall window, so a muted (silent) side is never
+            // mistaken for a dropped call: every 1.5 s with the default 5 s window.
+            val keepaliveEveryTicks = (stallMs / 3 / 500).toInt().coerceIn(1, 4)
             while (isActive) {
                 delay(500)
-                if (tick++ % 4 == 0) node.send(peer, AppMessage.CallKeepalive(callId))
+                if (tick++ % keepaliveEveryTicks == 0) node.send(peer, AppMessage.CallKeepalive(callId))
                 val now = clock()
                 val last = maxOf(session.lastPacketAt, lastKeepaliveAt)
                 val phase = _state.value.phase
