@@ -32,6 +32,14 @@ struct HomeScreen: View {
             }
             .navigationTitle("SRCS")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    NavigationLink {
+                        MapScreen()
+                    } label: {
+                        Image(systemName: "map")
+                    }
+                    .accessibilityIdentifier("offlineMap")
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink {
                         SettingsScreen()

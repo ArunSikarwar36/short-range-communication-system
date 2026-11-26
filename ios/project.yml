@@ -7,6 +7,10 @@ options:
   deploymentTarget:
     iOS: "16.0"
   createIntermediateGroups: true
+packages:
+  MapLibre:
+    url: https://github.com/maplibre/maplibre-gl-native-distribution
+    exactVersion: 7.1.0
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -19,6 +23,10 @@ targets:
     platform: iOS
     sources:
       - path: SRCS
+      # Offline map style, fonts and icons (shared with Android), kept as a folder in the bundle.
+      - path: ../assets/map
+        type: folder
+        buildPhase: resources
     info:
       path: SRCS/Info.plist
       properties:
@@ -49,6 +57,7 @@ targets:
         embed: false
       - sdk: Security.framework
       - sdk: AVFoundation.framework
+      - package: MapLibre
   SRCSUITests:
     type: bundle.ui-testing
     platform: iOS

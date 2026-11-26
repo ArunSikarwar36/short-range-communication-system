@@ -18,3 +18,6 @@ replay_pid*.log
 ios/build/
 ios/SRCS.xcodeproj/
 ios/SRCS/Info.plist
+
+# map style generator
+tools/map-style/node_modules/

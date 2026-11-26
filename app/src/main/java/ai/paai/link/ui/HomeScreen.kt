@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -70,6 +71,7 @@ fun HomeScreen(vm: LinkViewModel, gate: PermissionGate, onNavigate: (String) -> 
     val recent by vm.recentCalls.collectAsStateWithLifecycle()
     val conversations by vm.conversations.collectAsStateWithLifecycle()
     val unread = conversations.sumOf { it.unread }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -86,6 +88,7 @@ fun HomeScreen(vm: LinkViewModel, gate: PermissionGate, onNavigate: (String) -> 
                         Icon(painterResource(R.drawable.ic_chat), contentDescription = "Messages")
                     }
                 }
+                IconButton(onClick = { onNavigate("map") }) { Icon(Icons.Default.Place, contentDescription = "Offline map") }
                 IconButton(onClick = { onNavigate("group") }) { Icon(painterResource(R.drawable.ic_group), contentDescription = "Group and walkie-talkie") }
                 IconButton(onClick = { onNavigate("diagnostics") }) { Icon(Icons.Default.Info, contentDescription = "Diagnostics") }
                 IconButton(onClick = { onNavigate("settings") }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
@@ -131,11 +134,14 @@ fun HomeScreen(vm: LinkViewModel, gate: PermissionGate, onNavigate: (String) -> 
                 }
             }
 
-            if (online) item { SosAlerts(vm) }
+            val showOnMap: (Double, Double, String) -> Unit = { lat, lon, label ->
+                if (vm.hasMapFor(lat, lon)) onNavigate("map?lat=$lat&lon=$lon") else openInMapApp(context, lat, lon, label)
+            }
+            if (online) item { SosAlerts(vm, showOnMap) }
 
             if (online) item { RadarCard(vm, gate, onChat = { onNavigate("chat/${it.hex}") }) }
 
-            if (online) item { LocationCard(vm, gate) }
+            if (online) item { LocationCard(vm, gate, showOnMap) }
 
             if (invites.isNotEmpty()) item {
                 SectionCard("Invitations") {

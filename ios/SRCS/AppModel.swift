@@ -21,6 +21,7 @@ final class AppModel: ObservableObject {
     let controller: SrcsController
     let gps: GpsProvider
     private var sosPending = false
+    private var mapOpen = false
     private let defaults = UserDefaults.standard
     private var watchers: [Watcher] = []
     private var noticeTimer: Timer?
@@ -74,7 +75,13 @@ final class AppModel: ObservableObject {
     private func updateGps() {
         let sharing = snap?.location.sharing == true
         let friends = !(snap?.friends.isEmpty ?? true)
-        gps.setWanted(sharing || sosPending || friends, inBackground: sharing)
+        gps.setWanted(sharing || sosPending || friends || mapOpen, inBackground: sharing)
+    }
+
+    /// The map screens show this phone's position, so GPS runs while they are open.
+    func setMapOpen(_ open: Bool) {
+        mapOpen = open
+        updateGps()
     }
 
     /// Waits up to 8 s for a GPS fix so the SOS can carry coordinates, then sends it.

@@ -138,6 +138,12 @@ class LinkViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun toast(s: String) { _toasts.tryEmit(s) }
+
+    /** Short message at the bottom of the screen. */
+    fun notify(s: String) = toast(s)
+
+    /** True if a downloaded map area covers the position (then the in-app map can show it). */
+    fun hasMapFor(lat: Double, lon: Double): Boolean = c.maps.list.value.any { it.contains(lat, lon) }
     private fun launch(block: suspend () -> Unit) = viewModelScope.launch { block() }
 
     // ------------------------------------------------------------------ online

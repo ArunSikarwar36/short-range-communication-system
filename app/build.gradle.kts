@@ -61,11 +61,19 @@ android {
         }
     }
 
+    // Offline map style, fonts and icons shared with the iPhone app (repo root /assets).
+    sourceSets.getByName("main").assets.srcDir("../assets")
+
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
             version = "3.22.1"
         }
+    }
+
+    lint {
+        // Rule shipped with MapLibre's Timber dependency; SRCS logs through LogBuffer/android.util.Log.
+        disable += "LogNotTimber"
     }
 
     compileOptions {
@@ -115,6 +123,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.zxing.core)
+    implementation(libs.maplibre.android)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test.junit)

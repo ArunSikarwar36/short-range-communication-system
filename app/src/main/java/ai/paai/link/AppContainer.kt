@@ -11,6 +11,7 @@ import ai.paai.link.core.group.GroupManager
 import ai.paai.link.core.location.Geo
 import ai.paai.link.core.location.LocationService
 import ai.paai.link.location.AndroidGps
+import ai.paai.link.maps.MapsController
 import ai.paai.link.core.media.MediaCoordinator
 import ai.paai.link.core.media.MediaHooks
 import ai.paai.link.core.messaging.MessageStatus
@@ -120,14 +121,18 @@ class AppContainer(val app: Application) {
     /** GPS, on only while sharing, sending an SOS, or viewing friends' positions with the app open. */
     val gps = AndroidGps(app, log) { fix -> _stack.value?.location?.onFix(fix) }
     private val sosPending = MutableStateFlow(false)
+    /** True while the offline map or map download screen is open (they show this phone's position). */
+    val mapOpen = MutableStateFlow(false)
+    val maps = MapsController(app, log, scope)
 
     init {
         scope.launch {
-            kotlinx.coroutines.flow.combine(_stack, appVisible, sosPending) { s, visible, sos -> Triple(s, visible, sos) }
-                .flatMapLatest { (s, visible, sos) ->
-                    if (s == null) flowOf(false)
+            kotlinx.coroutines.flow.combine(_stack, appVisible, sosPending, mapOpen) { s, visible, sos, map -> listOf(s, visible, sos, map) }
+                .flatMapLatest { (s, visible, sos, map) ->
+                    s as LinkStack?; visible as Boolean; sos as Boolean; map as Boolean
+                    if (s == null) flowOf(visible && map)
                     else kotlinx.coroutines.flow.combine(s.location.sharing, s.location.friends) { sh, friends ->
-                        sh.active || sos || (visible && friends.isNotEmpty())
+                        sh.active || sos || (visible && (map || friends.isNotEmpty()))
                     }
                 }
                 .distinctUntilChanged()

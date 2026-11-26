@@ -182,6 +182,13 @@ fun LinkApp(vm: LinkViewModel, pendingAction: MutableStateFlow<String?>) {
             composable("group") { GroupScreen(vm, gate, onBack = { nav.popBackStack() }, onChat = { nav.navigate("chat/${it.hex}") }) }
             composable("diagnostics") { DiagnosticsScreen(vm, onBack = { nav.popBackStack() }) }
             composable("settings") { SettingsScreen(vm, onBack = { nav.popBackStack() }) }
+            composable("map?lat={lat}&lon={lon}") { entry ->
+                MapScreen(
+                    vm, entry.arguments?.getString("lat")?.toDoubleOrNull(), entry.arguments?.getString("lon")?.toDoubleOrNull(),
+                    onBack = { nav.popBackStack() }, onManage = { nav.navigate("mapareas") },
+                )
+            }
+            composable("mapareas") { MapAreasScreen(vm, onBack = { nav.popBackStack() }, onOpen = { nav.popBackStack(); nav.navigate("map") }) }
         }
 
         // Pairing: compare the code shown on both phones.

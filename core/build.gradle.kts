@@ -64,3 +64,15 @@ tasks.register<JavaExec>("demoPeer") {
     classpath = files(test.output.allOutputs, test.runtimeDependencyFiles)
     mainClass.set("ai.paai.link.core.DemoPeerKt")
 }
+
+// Developer tool: download a map area with the app's extractor (see src/jvmTest/kotlin/.../MapExtract.kt).
+tasks.register<JavaExec>("mapExtract") {
+    group = "verification"
+    description = "Downloads one map area from a Protomaps build into a .pmtiles file"
+    val test = kotlin.jvm().compilations.getByName("test")
+    classpath = files(test.output.allOutputs, test.runtimeDependencyFiles)
+    mainClass.set("ai.paai.link.core.MapExtractKt")
+    for (p in listOf("map.lat", "map.lon", "map.km", "map.zoom", "map.out", "map.url")) {
+        providers.gradleProperty(p).orNull?.let { systemProperty(p, it) }
+    }
+}

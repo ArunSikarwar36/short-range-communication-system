@@ -61,7 +61,7 @@ fun openInMapApp(context: Context, lat: Double, lon: Double, label: String) {
 
 /** Incoming SOS alerts, shown at the top of the home screen until dismissed. */
 @Composable
-fun SosAlerts(vm: LinkViewModel) {
+fun SosAlerts(vm: LinkViewModel, showOnMap: (Double, Double, String) -> Unit) {
     val alerts by vm.activeSos.collectAsStateWithLifecycle()
     val me by vm.myFix.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -77,7 +77,7 @@ fun SosAlerts(vm: LinkViewModel) {
                     " · " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(a.receivedAt)),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                a.fix?.let { f -> Button(onClick = { openInMapApp(context, f.lat, f.lon, "SOS ${a.name}") }) { Text("Show on map") } }
+                a.fix?.let { f -> Button(onClick = { showOnMap(f.lat, f.lon, "SOS ${a.name}") }) { Text("Show on map") } }
                 OutlinedButton(onClick = { vm.dismissSos(a.alertId) }) { Text("Dismiss") }
             }
         }
@@ -85,7 +85,7 @@ fun SosAlerts(vm: LinkViewModel) {
 }
 
 @Composable
-fun LocationCard(vm: LinkViewModel, gate: PermissionGate) {
+fun LocationCard(vm: LinkViewModel, gate: PermissionGate, showOnMap: (Double, Double, String) -> Unit) {
     val sharing by vm.sharing.collectAsStateWithLifecycle()
     val friends by vm.friendLocations.collectAsStateWithLifecycle()
     val me by vm.myFix.collectAsStateWithLifecycle()
@@ -138,7 +138,7 @@ fun LocationCard(vm: LinkViewModel, gate: PermissionGate) {
                             ).filter { it.isNotBlank() }.joinToString(" · "),
                         )
                     }
-                    TextButton(onClick = { openInMapApp(context, f.lat, f.lon, f.name) }) { Text("Map") }
+                    TextButton(onClick = { showOnMap(f.lat, f.lon, f.name) }) { Text("Map") }
                 }
             }
         }

@@ -1,0 +1,7 @@
+{
+  "name": "srcs-map-style",
+  "private": true,
+  "type": "module",
+  "description": "Generates the offline map style used by the SRCS apps (Protomaps basemap, dark flavour).",
+  "dependencies": { "@protomaps/basemaps": "5.7.2" }
+}

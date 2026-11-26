@@ -11,6 +11,9 @@ import ai.paai.link.core.group.GroupRole
 import ai.paai.link.core.location.Geo
 import ai.paai.link.core.location.GeoFix
 import ai.paai.link.core.location.LocationService
+import ai.paai.link.core.maps.MapAreaManager
+import ai.paai.link.core.maps.MapDownloadView
+import ai.paai.link.core.maps.MapRegion
 import ai.paai.link.core.media.AudioEngine
 import ai.paai.link.core.media.MediaCoordinator
 import ai.paai.link.core.media.MediaHooks
@@ -162,6 +165,9 @@ data class AppSnapshot(
     val location: LocationView,
     val friends: List<FriendView>,
     val sos: List<SosView>,
+    /** Offline map areas on this phone, and the current map download. */
+    val mapAreas: List<MapRegion>,
+    val mapDownload: MapDownloadView,
 )
 
 /** Returned by the watch functions; call [cancel] to stop receiving updates. */
@@ -462,6 +468,20 @@ class SrcsController(
 
     fun dismissSos(alertId: String) { stack?.location?.dismissSos(DeviceId.fromHex(alertId)) }
 
+    // ------------------------------------------------------------------ offline maps
+
+    /** Map areas live in <dataDir>/maps. */
+    val maps: MapAreaManager by lazy { MapAreaManager("$dataDir/maps", scope) { publish() } }
+
+    fun planMapArea(name: String, lat: Double, lon: Double, radiusKm: Double) = maps.planArea(name, lat, lon, radiusKm)
+    fun startMapDownload() = maps.startDownload()
+    fun cancelMapDownload() = maps.cancelDownload()
+    fun deleteMapArea(path: String) = maps.delete(path)
+    fun importMapArea(sourcePath: String, name: String): String = maps.importFile(sourcePath, name)
+
+    /** Best area for a position (the most detailed one that contains it), or null. */
+    fun mapAreaFor(lat: Double, lon: Double): MapRegion? = maps.regions.bestFor(lat, lon)?.takeIf { it.contains(lat, lon) }
+
     // ------------------------------------------------------------------ observing (Swift-friendly)
 
     fun watch(onChange: (AppSnapshot) -> Unit): Watcher = Watcher(scope.launch { snapshot.collect { onChange(it) } })
@@ -475,6 +495,7 @@ class SrcsController(
         fingerprint = LocalIdentity(keyPair, name).fingerprint, linkCount = 0, pairings = emptyList(), peers = emptyList(),
         call = null, group = null, invites = emptyList(), messagesVersion = 0, recentLog = emptyList(), radar = emptyList(),
         location = LocationView(false, false, false, 0, 0, false, 0.0, 0.0, 0), friends = emptyList(), sos = emptyList(),
+        mapAreas = emptyList(), mapDownload = MapDownloadView("IDLE"),
     )
 
     private fun publish() {
@@ -565,6 +586,7 @@ class SrcsController(
             messagesVersion = messageStore.version.value,
             recentLog = log.lines.value.takeLast(80).map { "${it.level.name.first()} ${it.tag}: ${it.message}" },
             radar = radar, location = locationView, friends = friends, sos = sos,
+            mapAreas = maps.list.value, mapDownload = maps.download.value,
         )
     }
 
