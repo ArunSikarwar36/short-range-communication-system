@@ -19,7 +19,7 @@ still `ai.paai.link` and the applicationId is `ai.paai.link`.)
 - `core/` is Kotlin Multiplatform (jvm + iosArm64 + iosSimulatorArm64). Put logic in `commonMain` with
   tests in `commonTest`; only `jvmMain`/`iosMain` may use platform APIs. iOS targets cannot build on
   Windows: `:core:compileCommonMainKotlinMetadata` catches JVM-only APIs locally, and GitHub Actions
-  runs `:core:iosSimulatorArm64Test` on macOS. Set `KONAN_DATA_DIR=D:ndroid-build\konan` if Kotlin/Native downloads.
+  runs `:core:iosSimulatorArm64Test` on macOS. Set `KONAN_DATA_DIR=D:\android-build\konan` if Kotlin/Native downloads.
 - Never claim hardware behaviour (Wi-Fi Direct, audio quality, range) works without phone tests.
 - Never log keys, message bodies or audio. Wire changes must bump `ProtocolLimits.VERSION`.
 - Room schema changes need migrations (schemas in `app/schemas/`).

@@ -1,5 +1,6 @@
 package ai.paai.link.core
 
+import ai.paai.link.core.node.LogBuffer
 import ai.paai.link.core.util.sleepMillis
 import ai.paai.link.core.util.currentTimeMillis
 import kotlin.concurrent.atomics.AtomicInt
@@ -143,6 +144,7 @@ class TestDevice(
             advertIntervalMs = 200, pingIntervalMs = 300, linkTimeoutMs = 3_000, routeTimeoutMs = 1_500,
             reconnectWindowMs = 15_000,
         ),
+        log = LogBuffer(sink = { println("[$name ${it.level} ${it.tag}] ${it.message}") }),
     )
     val media = MediaCoordinator(node, engine, scope)
     val calls = CallManager(node, media, scope, timerMs = FAST_TIMERS, stallMs = 1_200)

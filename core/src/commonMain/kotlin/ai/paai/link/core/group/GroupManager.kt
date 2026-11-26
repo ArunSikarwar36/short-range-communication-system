@@ -98,6 +98,8 @@ class GroupManager(
     private var arbiter = FloorArbiter()
     private var pttKeepalive: Job? = null
     private var recoveryJob: Job? = null
+    /** Update from the successor that arrived before this device noticed the host was gone. */
+    private var successorUpdate: Pair<DeviceId, AppMessage.GroupUpdate>? = null
     private var joinTimeout: Job? = null
     private val unreachableSince = HashMap<DeviceId, Long>()
     @Volatile private var memberIds: List<DeviceId> = emptyList()
@@ -344,9 +346,18 @@ class GroupManager(
         val authorised = from == u.host && (from == currentHost || (g.status == GroupStatus.RECOVERING && from == successor) ||
             (g.status == GroupStatus.JOINING && from == currentHost))
         if (!authorised) {
+            if (g.status == GroupStatus.ACTIVE && from == successor && from == u.host) {
+                // The successor detected the host loss first. Keep its update and apply it once this
+                // device has confirmed the loss too, rather than dropping it and timing out later.
+                successorUpdate = from to u
+                node.log.i(TAG, "${node.peerName(from)} is taking over; waiting to confirm the host is gone")
+                if (currentHost != null && unreachableSince.containsKey(currentHost)) beginRecovery(g)
+                return
+            }
             node.log.w(TAG, "ignored group update from ${node.peerName(from)}")
             return
         }
+        successorUpdate = null
         val me = u.members.firstOrNull { it.id == node.selfId }
         if (me == null) {
             endLocally("No longer a member of '${u.name}'")
@@ -452,6 +463,11 @@ class GroupManager(
             _events.tryEmit(GroupEvent.Info("Host lost — you are now hosting"))
             newEpoch(st)
         } else {
+            successorUpdate?.let { (from, update) ->
+                successorUpdate = null
+                onUpdate(from, update)
+                if (_group.value?.status == GroupStatus.ACTIVE) return
+            }
             _events.tryEmit(GroupEvent.Info("Host lost — waiting for ${g.members.getOrNull(1)?.name ?: "a new host"}"))
             recoveryJob?.cancel()
             recoveryJob = scope.launch(actor) {
@@ -483,6 +499,7 @@ class GroupManager(
         setGroup(null)
         _ptt.value = PttState()
         unreachableSince.clear()
+        successorUpdate = null
         mediaKey = null
         if (g != null) {
             node.log.i(TAG, "group '${g.name}' closed: $reason")

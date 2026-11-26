@@ -1,11 +1,9 @@
 package ai.paai.link.core.transport
 
-import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.IntVar
 import kotlinx.cinterop.MemScope
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
-import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.convert
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
@@ -21,7 +19,6 @@ import platform.posix.EINTR
 import platform.posix.EWOULDBLOCK
 import platform.posix.F_GETFL
 import platform.posix.F_SETFL
-import platform.posix.INET_ADDRSTRLEN
 import platform.posix.O_NONBLOCK
 import platform.posix.POLLIN
 import platform.posix.POLLOUT
@@ -41,8 +38,7 @@ import platform.posix.errno
 import platform.posix.fcntl
 import platform.posix.getsockname
 import platform.posix.getsockopt
-import platform.posix.inet_ntop
-import platform.posix.inet_pton
+import platform.posix.memset
 import platform.posix.poll
 import platform.posix.pollfd
 import platform.posix.recv
@@ -65,22 +61,33 @@ private const val POLL_SLICE_MS = 250
 private fun swap16(v: Int): Int = ((v and 0xff) shl 8) or ((v ushr 8) and 0xff)
 private fun lastError(what: String) = "$what: ${strerror(errno)?.toKString() ?: "error $errno"}"
 
+/** Parses dotted IPv4 text into s_addr (network byte order; iOS devices are little-endian). */
+internal fun ipv4ToSAddr(host: String): UInt {
+    val parts = host.split('.')
+    if (parts.size != 4) throw ConnectionLostException("not an IPv4 address: $host")
+    var v = 0u
+    for ((i, p) in parts.withIndex()) {
+        val n = p.toIntOrNull()
+        if (n == null || n !in 0..255 || p.isEmpty() || p.length > 3) throw ConnectionLostException("not an IPv4 address: $host")
+        v = v or (n.toUInt() shl (8 * i))
+    }
+    return v
+}
+
+internal fun sAddrToIpv4(v: UInt): String =
+    (0 until 4).joinToString(".") { ((v shr (8 * it)) and 0xffu).toString() }
+
 private fun MemScope.address(host: String?, port: Int): sockaddr_in {
     val a = alloc<sockaddr_in>()
+    memset(a.ptr, 0, sizeOf<sockaddr_in>().convert())
     a.sin_len = sizeOf<sockaddr_in>().convert()
     a.sin_family = AF_INET.convert()
     a.sin_port = swap16(port).convert()
-    a.sin_addr.s_addr = 0u
-    a.sin_zero.let { for (i in 0 until 8) it[i] = 0 }
-    if (host != null && inet_pton(AF_INET, host, a.sin_addr.ptr) != 1) throw ConnectionLostException("not an IPv4 address: $host")
+    a.sin_addr.s_addr = if (host == null) 0u else ipv4ToSAddr(host)
     return a
 }
 
-private fun hostOf(a: sockaddr_in): String = memScoped {
-    val buf = allocArray<ByteVar>(INET_ADDRSTRLEN)
-    inet_ntop(AF_INET, a.sin_addr.ptr, buf, INET_ADDRSTRLEN.convert())
-    buf.toKString()
-}
+private fun hostOf(a: sockaddr_in): String = sAddrToIpv4(a.sin_addr.s_addr)
 
 private fun setInt(fd: Int, level: Int, name: Int, value: Int) = memScoped {
     val v = alloc<IntVar>()
