@@ -17,6 +17,17 @@ sense yet. Everything below the radio and the real microphone/speaker is built a
 | 6 Relay | DSDV routing, TTL/hop limit, loop prevention, route expiry/withdrawal, dedupe, relay authorisation (paired only), per-source rate limit, battery policy, topology screen | Line-topology routing tests; relayed messages and calls; withdrawal when relay disappears | A–B–C range extension in the field; battery/throughput impact. Multi-group bridging is not possible with standard Wi-Fi Direct (see ARCHITECTURE.md) |
 | 7 Hardening & release | Threat model, fuzz tests, lint clean, R8 release build, signing setup, data excluded from backup, user guide | Protocol fuzzing (20k random + mutations), lint | Compatibility matrix, long-call and battery tests, independent security review, release key |
 
+## Wi-Fi Aware and Nearby radar (2026-11-26)
+- **Android Wi-Fi Aware: built, not yet tested on phones.** Runs alongside Wi-Fi Direct on Android 10+
+  phones with Wi-Fi Aware hardware: phones discover each other (only a random per-session number is
+  broadcast) and link directly without a group owner. Diagnostics shows support, peers and data
+  paths. The emulator has no Wi-Fi Aware, so it has only been compiled and lint-checked.
+- **iPhone Wi-Fi Aware: deferred.** Needs a paid Apple Developer account and Apple's approval of the
+  managed Wi-Fi Aware entitlement (iOS 26, iPhone 12 or newer). Android ↔ iPhone over Wi-Fi Aware
+  also needs real-device testing; iPhones keep joining an Android host's Wi-Fi Direct group.
+- **Nearby radar: built** on Android and iPhone from one shared layout; checked on the emulator with
+  the desktop test phone (linked phone on the inner ring, tap → Call / Message).
+
 ## iPhone support (in progress)
 - **Done (Android side):** the host phone shows an "Add an iPhone" QR code with its Wi-Fi Direct
   network name and password, so an iPhone can join the group as an ordinary Wi-Fi client.

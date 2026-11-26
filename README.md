@@ -1,7 +1,19 @@
 # SRCS — Short Range Communication System
 
-SRCS (formerly "P.A.A.I. Link" in the master plan) is an offline Android app for calls, push-to-talk and text between nearby phones. It needs **no mobile
-network, internet, server or Wi-Fi router**: phones connect directly with Wi-Fi Direct.
+SRCS (formerly "P.A.A.I. Link" in the master plan) is an **offline communication network for people
+nearby**: calls, walkie-talkie, group channels and text between Android phones and iPhones, with
+**no SIM, mobile data, internet, server or Wi-Fi router**. Phones connect directly (Wi-Fi Aware or
+Wi-Fi Direct on Android; iPhones join an Android phone's Wi-Fi Direct group) and can relay for each
+other.
+
+| | |
+|---|---|
+| **Nearby Radar** | See SRCS phones around you: linked, reached through a relay, or nearby and not yet linked |
+| **Private Calling** | One-to-one encrypted voice calls |
+| **Walkie-Talkie** | Instant push-to-talk channels |
+| **Group Channel** | Group calls with several phones |
+| **Offline Chat** | Text messages with delivery and read receipts, delivered later when out of range |
+| **Signal Relay** | Phones in between pass calls and messages on, end-to-end encrypted |
 
 ## Download
 
@@ -21,7 +33,8 @@ What is built, what is tested and what still needs real phones is in [docs/STATU
 
 | Feature | Notes |
 |---|---|
-| Discovery and connection | Wi-Fi Direct scan, connect, host a group; group-owner / client detection |
+| Discovery and connection | Wi-Fi Aware (Android 10+, if the phone supports it: automatic, no host needed) and Wi-Fi Direct scan / connect / host; iPhones join a host via QR code |
+| Nearby radar | Shared layout for Android and iPhone: linked / via relay / nearby rings, tap for actions |
 | Pairing | Noise XX handshake + 6-digit code compared on both screens; trust stored once |
 | One-to-one calls | Full duplex, Opus 48 kHz / 20 ms, encrypted UDP, adaptive jitter buffer, echo cancellation |
 | Call experience | Ringing, accept / decline, busy, no answer, missed, reconnecting, mute, speaker / earpiece / Bluetooth / wired |
@@ -34,10 +47,12 @@ What is built, what is tested and what still needs real phones is in [docs/STATU
 ## Project layout
 
 ```
-core/   Pure Kotlin library (no Android): crypto, protocol, transport, routing, calls, PTT,
-        groups, messaging, media pipeline. Fully unit- and integration-tested on the PC.
-app/    Android app: Wi-Fi Direct, AudioRecord/AudioTrack, Opus (NDK), Room, DataStore,
-        Keystore, foreground service, notifications, Jetpack Compose UI.
+core/   Kotlin Multiplatform library shared by Android and iPhone: crypto, protocol, transport,
+        routing, calls, PTT, groups, messaging, media pipeline, app controller, radar layout.
+        Tested on the JVM and on an iPhone simulator (GitHub Actions).
+app/    Android app: Wi-Fi Aware + Wi-Fi Direct, AudioRecord/AudioTrack, Opus (NDK), Room,
+        DataStore, Keystore, foreground service, notifications, Jetpack Compose UI.
+ios/    iPhone app: SwiftUI, AVAudioEngine voice processing, Opus, Keychain (see docs/IOS.md).
 app/src/main/cpp/opus   libopus 1.5.2 source (BSD), built with CMake.
 docs/   Architecture, protocol, security, testing, status, user guide, release.
 ```

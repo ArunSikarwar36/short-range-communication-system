@@ -31,24 +31,27 @@ final class AppModel: ObservableObject {
             try? FileManager.default.removeItem(atPath: AppModel.dataDir)
         }
         let stored = UserDefaults.standard
-        onboarded = stored.bool(forKey: "onboarded")
-        displayName = stored.string(forKey: "displayName") ?? UIDevice.current.name
-        autoConnect = stored.object(forKey: "autoConnect") as? Bool ?? true
+        let wasOnboarded = stored.bool(forKey: "onboarded")
+        let name = stored.string(forKey: "displayName") ?? UIDevice.current.name
+        let auto = stored.object(forKey: "autoConnect") as? Bool ?? true
+        onboarded = wasOnboarded
+        displayName = name
+        autoConnect = auto
         controller = SrcsController.Companion.shared.create(
             dataDir: AppModel.dataDir,
             privateKey: Keychain.identityKey(),
-            displayName: displayName,
+            displayName: name,
             audio: IOSAudioEngine(),
             hooks: AudioHooks()
         )
-        controller.setAutoConnect(enabled: autoConnect)
+        controller.setAutoConnect(enabled: auto)
         watchers.append(controller.watch { [weak self] s in
             DispatchQueue.main.async { self?.apply(s) }
         })
         watchers.append(controller.watchNotices { [weak self] text in
             DispatchQueue.main.async { self?.show(text) }
         })
-        if onboarded && stored.bool(forKey: "wasOnline") { controller.goOnline() }
+        if wasOnboarded && stored.bool(forKey: "wasOnline") { controller.goOnline() }
     }
 
     static var dataDir: String {

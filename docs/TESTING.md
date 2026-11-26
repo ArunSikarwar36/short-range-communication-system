@@ -57,6 +57,7 @@ Record phone models and Android versions for every run. Mobile data **off**, no 
 | 20 | Long call | 60 min call | No crash, no growing latency, battery measured |
 | 21 | Repeated calls | 20 calls in a row | No leak: memory stable, mic released each time |
 | 22 | iPhone joins Wi-Fi | A hosts, taps Add an iPhone; iPhone Camera scans the code | iPhone joins `DIRECT-…` and stays on it with no internet; A's group stays up |
+| 23 | Wi-Fi Aware | Two Android 10+ phones with Wi-Fi Aware, both online, no group hosted | Each appears on the other's radar, links automatically, pairing code shown; Diagnostics shows 1 data path |
 
 ### Measuring latency
 Put both phones side by side, clap near A, record both speakers with a third device; the delay
