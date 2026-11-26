@@ -77,7 +77,7 @@ struct RadarView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
-        .confirmationDialog(selected?.name ?: "", isPresented: Binding(get: { selected != nil }, set: { if !$0 { selected = nil } }), titleVisibility: .visible) {
+        .confirmationDialog(selected?.name ?? "", isPresented: Binding(get: { selected != nil }, set: { if !$0 { selected = nil } }), titleVisibility: .visible) {
             if let d = selected, !d.peerId.isEmpty {
                 Button("Call") { model.call(d.peerId) }
             }
