@@ -7,8 +7,8 @@ Android phones (same shared core, same protocol).
 
 ## Install (no Mac, no paid Apple account)
 
-1. On GitHub, open the latest successful run of the **CI** workflow (Actions tab) and download the
-   artifact **SRCS-unsigned-ipa** (`SRCS-unsigned.ipa` inside the zip).
+1. Download **[SRCS-unsigned.ipa](https://github.com/ArunSikarwar36/short-range-communication-system/releases/latest/download/SRCS-unsigned.ipa)**
+   (or, for the newest build, the **SRCS-unsigned-ipa** artifact of the latest CI run).
 2. On a Windows PC, install **Sideloadly** (or AltStore) and iTunes/Apple Devices.
 3. Connect the iPhone by USB, drag `SRCS-unsigned.ipa` into Sideloadly, sign in with your Apple ID
    and press Start. On iPhones with iOS 16 or newer, turn on **Settings → Privacy & Security →

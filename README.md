@@ -19,6 +19,8 @@ other.
 
 **[Download SRCS.apk](https://github.com/ArunSikarwar36/short-range-communication-system/releases/latest/download/SRCS.apk)** (Android 8.0 or newer, about 19 MB)
 
+**[Download SRCS-unsigned.ipa](https://github.com/ArunSikarwar36/short-range-communication-system/releases/latest/download/SRCS-unsigned.ipa)** (iPhone, iOS 16 or newer; install with Sideloadly or AltStore, see [docs/IOS.md](docs/IOS.md))
+
 This is a test build. It is tested on the PC and the emulator but not yet on physical phones.
 Android will ask you to allow installing apps from your browser or file manager. Install it on
 two phones, turn mobile data off, and follow [docs/TESTING.md](docs/TESTING.md).
