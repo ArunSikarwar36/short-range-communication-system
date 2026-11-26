@@ -1,0 +1,15 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.cxx/
+.externalNativeBuild/
+captures/
+*.keystore
+*.jks
+keystore.properties
+
+# JVM crash dumps
+hs_err_pid*.log
+replay_pid*.log
