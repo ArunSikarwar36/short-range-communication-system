@@ -66,3 +66,68 @@ jobs:
         with:
           name: ios-test-reports
           path: core/build/reports/tests
+
+  ios-app:
+    name: iPhone app (unsigned IPA + simulator test)
+    runs-on: macos-latest
+    timeout-minutes: 75
+    needs: ios-core
+    env:
+      SRCS_CORE_ONLY: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+      - name: Tools
+        run: brew install xcodegen
+      - name: Build Opus and the shared core frameworks
+        run: ios/scripts/build-deps.sh
+      - name: Generate Xcode project
+        run: cd ios && xcodegen generate
+      - name: Build unsigned IPA (for Sideloadly / AltStore)
+        run: |
+          cd ios
+          xcodebuild -project SRCS.xcodeproj -scheme SRCS -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build | tail -n 40
+          rm -rf build/ipa && mkdir -p build/ipa/Payload
+          cp -R build/dd/Build/Products/Release-iphoneos/SRCS.app build/ipa/Payload/
+          (cd build/ipa && zip -qry ../SRCS-unsigned.ipa Payload)
+          ls -la build/SRCS-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SRCS-unsigned-ipa
+          path: ios/build/SRCS-unsigned.ipa
+      - name: Start the desktop test phone
+        run: |
+          nohup ./gradlew :core:demoPeer > demo-peer.log 2>&1 &
+          for i in $(seq 1 100); do grep -q "listening on tcp" demo-peer.log && break; sleep 3; done
+          cat demo-peer.log | tail -n 5
+      - name: UI test on an iPhone simulator
+        run: |
+          cd ios
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k,v in sorted(d.items(), reverse=True) if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
+          echo "simulator $UDID"
+          xcodebuild test -project SRCS.xcodeproj -scheme SRCS -destination "id=$UDID" \
+            -derivedDataPath build/dd-sim -resultBundlePath build/UITests.xcresult | tail -n 60
+      - name: Export test screenshots
+        if: always()
+        run: |
+          cd ios
+          mkdir -p build/screenshots
+          if [ -d build/UITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/UITests.xcresult --output-path build/screenshots || true
+          fi
+          cp ../demo-peer.log build/screenshots/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-ui-test-results
+          path: ios/build/screenshots

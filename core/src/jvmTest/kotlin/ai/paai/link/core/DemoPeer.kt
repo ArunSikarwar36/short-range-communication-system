@@ -44,8 +44,12 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * From the emulator: Diagnostics → Connect by address → 10.0.2.2:47710
  * Commands: write "call" / "hangup" / "msg <text>" into D:\android-build\demo-peer.cmd
  */
+/** Key and command files: D:/android-build on the development PC, the temp folder elsewhere (CI on macOS). */
+private val demoDir: String = System.getenv("SRCS_DEMO_DIR")
+    ?: if (File("D:/android-build").isDirectory) "D:/android-build" else System.getProperty("java.io.tmpdir")
+
 fun main() = runBlocking {
-    val keyFile = File(System.getProperty("demo.key", "D:/android-build/demo-peer.key"))
+    val keyFile = File(System.getProperty("demo.key", "$demoDir/demo-peer.key"))
     val kp = if (keyFile.exists()) KeyPair.fromPrivate(keyFile.readText().trim().hexToBytes())
     else Primitives.generateKeyPair().also { keyFile.writeText(it.privateKeyCopy().toHex()) }
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -94,7 +98,7 @@ fun main() = runBlocking {
             }
         }
     }
-    val cmdFile = File(System.getProperty("demo.cmd", "D:/android-build/demo-peer.cmd"))
+    val cmdFile = File(System.getProperty("demo.cmd", "$demoDir/demo-peer.cmd"))
     while (true) {
         delay(500)
         if (!cmdFile.exists()) continue

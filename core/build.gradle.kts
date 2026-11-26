@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
 }
@@ -10,11 +12,14 @@ plugins {
 kotlin {
     jvmToolchain(17)
     jvm()
+    // The iOS app links SrcsCore.xcframework (gradlew :core:assembleSrcsCoreReleaseXCFramework, macOS only).
+    val xcf = XCFramework("SrcsCore")
     listOf(iosArm64(), iosSimulatorArm64()).forEach {
         it.compilerOptions.optIn.add("kotlinx.cinterop.ExperimentalForeignApi")
         it.binaries.framework {
             baseName = "SrcsCore"
             isStatic = true
+            xcf.add(this)
         }
     }
 

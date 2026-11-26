@@ -13,3 +13,8 @@ keystore.properties
 # JVM crash dumps
 hs_err_pid*.log
 replay_pid*.log
+
+# iOS build outputs
+ios/build/
+ios/SRCS.xcodeproj/
+ios/SRCS/Info.plist
