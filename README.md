@@ -3,6 +3,14 @@
 SRCS (formerly "P.A.A.I. Link" in the master plan) is an offline Android app for calls, push-to-talk and text between nearby phones. It needs **no mobile
 network, internet, server or Wi-Fi router**: phones connect directly with Wi-Fi Direct.
 
+## Download
+
+**[Download SRCS.apk](https://github.com/ArunSikarwar36/short-range-communication-system/releases/latest/download/SRCS.apk)** (Android 8.0 or newer, about 19 MB)
+
+This is a test build. It is tested on the PC and the emulator but not yet on physical phones.
+Android will ask you to allow installing apps from your browser or file manager. Install it on
+two phones, turn mobile data off, and follow [docs/TESTING.md](docs/TESTING.md).
+
 The full product plan is in [PAAI_Link_All_Phases_Master_Plan.md](PAAI_Link_All_Phases_Master_Plan.md).
 What is built, what is tested and what still needs real phones is in [docs/STATUS.md](docs/STATUS.md).
 
