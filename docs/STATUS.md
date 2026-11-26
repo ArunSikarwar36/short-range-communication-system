@@ -24,7 +24,8 @@ sense yet. Everything below the radio and the real microphone/speaker is built a
 - **Done (shared core):** `core` is Kotlin Multiplatform (Android/JVM + iOS). Only crypto
   primitives, sockets and clock/random/thread helpers differ per platform. All 68 core tests run on
   the JVM locally; GitHub Actions (`.github/workflows/ci.yml`) runs them on an iPhone simulator and
-  builds the iPhone framework `SrcsCore` on every push. The Android app is unchanged and was
+  builds the iPhone framework `SrcsCore` on every push (first green run 2026-11-26: 66 tests on the
+  iPhone simulator, incl. the multi-phone socket tests and crypto vectors). The Android app is unchanged and was
   re-verified on the emulator (pairing, call, message with the desktop test phone).
 - **Not done:** the iPhone app itself (SwiftUI screens, audio, Keychain storage, joining flow). Not yet checked on real phones that an iPhone joins and stays on an
   Android Wi-Fi Direct group (test 22 in TESTING.md).
