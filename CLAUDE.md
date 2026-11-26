@@ -9,7 +9,7 @@ still `ai.paai.link` and the applicationId is `ai.paai.link`.)
 
 ## Build and test (Windows, PowerShell or Git Bash)
 - Always set `GRADLE_USER_HOME=D:\android-build\gradle-home` (C: is nearly full).
-- `gradlew :core:test` (56 PC tests incl. multi-node integration), `:app:testDebugUnitTest`, `lintDebug`,
+- `gradlew :core:test` (59 PC tests incl. multi-node integration), `:app:testDebugUnitTest`, `lintDebug`,
   `assembleDebug`, `connectedDebugAndroidTest` (needs emulator/phone).
 - Emulator: AVD `paai36` in `D:\android-build\avd` (set `ANDROID_AVD_HOME`), API 36 x86_64, WHPX.
 - Desktop peer for emulator demos: `gradlew :core:demoPeer` + `adb emu redir add udp:47701:47701`.

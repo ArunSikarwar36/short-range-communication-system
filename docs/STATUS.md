@@ -17,6 +17,17 @@ sense yet. Everything below the radio and the real microphone/speaker is built a
 | 6 Relay | DSDV routing, TTL/hop limit, loop prevention, route expiry/withdrawal, dedupe, relay authorisation (paired only), per-source rate limit, battery policy, topology screen | Line-topology routing tests; relayed messages and calls; withdrawal when relay disappears | A–B–C range extension in the field; battery/throughput impact. Multi-group bridging is not possible with standard Wi-Fi Direct (see ARCHITECTURE.md) |
 | 7 Hardening & release | Threat model, fuzz tests, lint clean, R8 release build, signing setup, data excluded from backup, user guide | Protocol fuzzing (20k random + mutations), lint | Compatibility matrix, long-call and battery tests, independent security review, release key |
 
+## iPhone support (in progress)
+- **Done (Android side):** the host phone shows an "Add an iPhone" QR code with its Wi-Fi Direct
+  network name and password, so an iPhone can join the group as an ordinary Wi-Fi client.
+  Unit-tested and the on-screen QR code is decoded in a device test.
+- **Not done:** the iPhone app itself (shared Kotlin Multiplatform core + iPhone UI, built on
+  GitHub's macOS machines). Not yet checked on real phones that an iPhone joins and stays on an
+  Android Wi-Fi Direct group (test 22 in TESTING.md).
+- **Limits by design:** an Android phone must host; the iPhone app works only while it is open
+  (iOS cannot ring for offline calls in the background); without a paid Apple account the app
+  must be sideloaded and reinstalled every 7 days.
+
 ## Known limitations
 - Only one Wi-Fi Direct group per phone, so practical relaying is the star topology (A and C via host B).
 - Group media is relayed by the host (more battery on the host); default limit 6 members.

@@ -4,8 +4,8 @@
 
 ```powershell
 $env:GRADLE_USER_HOME = "D:\android-build\gradle-home"
-.\gradlew.bat :core:test                 # 56 tests, ~40 s
-.\gradlew.bat :app:testDebugUnitTest     # Room mapping
+.\gradlew.bat :core:test                 # 59 tests, ~40 s
+.\gradlew.bat :app:testDebugUnitTest     # Room mapping, Wi-Fi QR round trip
 .\gradlew.bat lintDebug
 .\gradlew.bat connectedDebugAndroidTest  # on a phone or emulator
 ```
@@ -24,6 +24,8 @@ $env:GRADLE_USER_HOME = "D:\android-build\gradle-home"
 | `RoomStorageTest` (device) | Duplicate rejection, pending queue, trust records keep local names |
 | `KeystoreIdentityTest` (device) | Identity survives reload |
 | `UiSmokeTest` (device) | App launches and renders |
+| `WifiJoinTest`, `QrTest` | Wi-Fi QR text and escaping; the QR code decodes back to the same text |
+| `JoinIphoneTest` (device) | "Add an iPhone" dialog shows name/password, and the QR code read from the screen pixels decodes correctly |
 
 ## Two-phone test plan
 
@@ -52,6 +54,7 @@ Record phone models and Android versions for every run. Mobile data **off**, no 
 | 19 | No Wi-Fi Direct | Device without Wi-Fi Direct | Clear "not supported" message |
 | 20 | Long call | 60 min call | No crash, no growing latency, battery measured |
 | 21 | Repeated calls | 20 calls in a row | No leak: memory stable, mic released each time |
+| 22 | iPhone joins Wi-Fi | A hosts, taps Add an iPhone; iPhone Camera scans the code | iPhone joins `DIRECT-…` and stays on it with no internet; A's group stays up |
 
 ### Measuring latency
 Put both phones side by side, clap near A, record both speakers with a third device; the delay

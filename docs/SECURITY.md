@@ -47,6 +47,10 @@
   audio stream inside the group. Per-sender signatures would cost bandwidth and battery.
 - **Metadata is visible to relays and nearby observers**: which device IDs talk, when and how much.
   Wi-Fi Direct device names are broadcast during discovery.
+- **The "Add an iPhone" QR code shows the Wi-Fi Direct group password.** Anyone who sees it can
+  join the Wi-Fi network and reach the host's SRCS port, but cannot talk or listen: SRCS still
+  requires the Noise handshake and a confirmed pairing code. Leaving and re-hosting the group may
+  keep the same password on some phones (Android persistent groups).
 - **Pairing depends on users actually comparing the code.**
 - **Denial of service** by radio jamming or a misbehaving relay dropping traffic cannot be prevented.
 - No independent security review has been done. Do this before relying on the app for anything sensitive.

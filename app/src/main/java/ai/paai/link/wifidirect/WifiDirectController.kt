@@ -36,8 +36,12 @@ data class P2pGroupInfo(
     val isOwner: Boolean = false,
     val ownerAddress: String? = null,
     val networkName: String? = null,
+    /** WPA passphrase of the group (owner only). Shown to the user for iPhones to join; never logged. */
+    val passphrase: String? = null,
     val clientCount: Int = 0,
-)
+) {
+    override fun toString() = "P2pGroupInfo(formed=$formed, isOwner=$isOwner, owner=$ownerAddress, network=$networkName, clients=$clientCount)"
+}
 
 data class WifiDirectState(
     val supported: Boolean = true,
@@ -181,7 +185,7 @@ class WifiDirectController(
             val owner = info.groupOwnerAddress
             _state.update { it.copy(group = it.group.copy(formed = true, isOwner = info.isGroupOwner, ownerAddress = owner?.hostAddress)) }
             manager.requestGroupInfo(ch) { g ->
-                _state.update { it.copy(group = it.group.copy(networkName = g?.networkName, clientCount = g?.clientList?.size ?: 0)) }
+                _state.update { it.copy(group = it.group.copy(networkName = g?.networkName, passphrase = g?.passphrase?.takeIf { g.isGroupOwner }, clientCount = g?.clientList?.size ?: 0)) }
             }
             if (!lastFormed && owner != null) {
                 lastFormed = true

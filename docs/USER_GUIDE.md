@@ -11,6 +11,18 @@ One phone taps **Host a group**. The others scan and connect to that phone. The 
 and messages between the others, so phones that cannot reach each other directly can still talk,
 as long as both reach the host.
 
+## Adding an iPhone
+iPhones cannot use Wi-Fi Direct, but they can join an Android host's group as a normal Wi-Fi
+network. The iPhone app is planned; this is the Android side of it.
+1. An Android phone taps **Host a group**, then **Add an iPhone**. It shows a QR code, the
+   network name and the password.
+2. On the iPhone, open the Camera, point it at the QR code and tap **Join network** (or type the
+   name and password in Settings → Wi-Fi).
+3. Open SRCS on the iPhone. It connects to the host at 192.168.49.1 and you compare the pairing
+   code as usual.
+
+The Android host must stay in range and keep hosting; the iPhone reaches everyone else through it.
+
 ## Calls
 Tap the phone icon next to a paired device. During a call: mute, choose Phone / Speaker /
 Bluetooth / Headset, end. If the connection drops, the call shows *Reconnecting…* for up to

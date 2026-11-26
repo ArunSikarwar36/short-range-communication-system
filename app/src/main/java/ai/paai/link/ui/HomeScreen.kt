@@ -43,6 +43,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -183,6 +184,7 @@ fun HomeScreen(vm: LinkViewModel, gate: PermissionGate, onNavigate: (String) -> 
 private fun NearbyCard(vm: LinkViewModel, gate: PermissionGate) {
     val wifi by vm.wifi.collectAsStateWithLifecycle()
     val links by vm.links.collectAsStateWithLifecycle()
+    var showJoin by remember { mutableStateOf(false) }
     SectionCard("Nearby devices", action = {
         if (wifi.supported) {
             if (wifi.discovering) TextButton(onClick = { vm.stopScan() }) { Text("Stop") }
@@ -214,7 +216,15 @@ private fun NearbyCard(vm: LinkViewModel, gate: PermissionGate) {
                 OutlinedButton(onClick = { gate.withPermissions(Perms.discovery, Reasons.DISCOVERY) { vm.hostGroup() } }) { Text("Host a group") }
             }
             if (wifi.group.formed) OutlinedButton(onClick = { vm.leaveP2p() }) { Text("Leave Wi-Fi Direct group") }
+            if (wifi.group.isOwner && wifi.group.networkName != null && wifi.group.passphrase != null) {
+                OutlinedButton(onClick = { showJoin = true }) { Text("Add an iPhone") }
+            }
         }
+        val joinName = wifi.group.networkName
+        val joinPass = wifi.group.passphrase
+        val canJoin = wifi.group.isOwner && joinName != null && joinPass != null
+        LaunchedEffect(canJoin) { if (!canJoin) showJoin = false }
+        if (showJoin && joinName != null && joinPass != null) JoinIphoneDialog(joinName, joinPass) { showJoin = false }
         if (wifi.group.formed) Hint(
             if (wifi.group.isOwner) "This phone is the group owner. Others connect to it; it relays calls between them."
             else "Connected to group owner ${wifi.group.ownerAddress ?: ""}",
