@@ -90,7 +90,7 @@ class CryptoTest {
     fun `sealed message opens only for the right recipient and sender`() {
         val header = "header".encodeToByteArray()
         val sealed = Sealer.seal(alice, bob.publicKey, header, "hello".encodeToByteArray())
-        assertEquals("hello", String(Sealer.open(bob, alice.publicKey, header, sealed)))
+        assertEquals("hello", Sealer.open(bob, alice.publicKey, header, sealed).decodeToString())
         assertFailsWith<CryptoException> { Sealer.open(bob, mallory.publicKey, header, sealed) }
         assertFailsWith<CryptoException> { Sealer.open(mallory, alice.publicKey, header, sealed) }
     }
@@ -106,7 +106,7 @@ class CryptoTest {
     }
 
     @Test
-    fun `two seals of the same payload differ (fresh ephemeral)`() {
+    fun `two seals of the same payload differ because each uses a fresh ephemeral key`() {
         val a = Sealer.seal(alice, bob.publicKey, ByteArray(0), "x".encodeToByteArray())
         val b = Sealer.seal(alice, bob.publicKey, ByteArray(0), "x".encodeToByteArray())
         assertFalse(a.contentEquals(b))
@@ -118,7 +118,7 @@ class CryptoTest {
         val c = MediaCipher(key)
         val aad = "hdr".encodeToByteArray()
         val ct = c.encrypt(7, 42, aad, "voice".encodeToByteArray())
-        assertEquals("voice", String(MediaCipher(key).decrypt(7, 42, aad, ct)))
+        assertEquals("voice", MediaCipher(key).decrypt(7, 42, aad, ct).decodeToString())
         assertFailsWith<CryptoException> { c.decrypt(7, 43, aad, ct) } // wrong nonce
         assertFailsWith<CryptoException> { c.decrypt(8, 42, aad, ct) }
         assertFailsWith<CryptoException> { c.decrypt(7, 42, "hdX".encodeToByteArray(), ct) }

@@ -149,7 +149,7 @@ class IntegrationTest {
     // ------------------------------------------------------------------ calls
 
     @Test
-    fun `one-to-one call with two-way audio, mute and clean teardown`() {
+    fun `one-to-one call with two-way audio and mute and clean teardown`() {
         val a = device("A", 1000); val b = device("B", 2000)
         trustEachOther(a, b)
         started(a, b)
