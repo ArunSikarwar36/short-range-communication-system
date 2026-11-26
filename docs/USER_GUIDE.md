@@ -62,6 +62,15 @@ and *Read*.
 - GPS works without internet. SRCS only turns it on while you share, send an SOS, or look at
   friends' positions.
 
+## Offline maps
+- Tap the map icon on the home screen, then **Map areas**. With internet (once), pick the centre
+  (your GPS position is filled in), a radius, **Check size**, then **Download**. A 5 km area of a city
+  is about 5 MB.
+- The map then works anywhere without internet and shows you, friends sharing their location and
+  SOS alerts. **Map** buttons in the Location card and SOS alerts open it when an area covers the spot.
+- You can also **Import a .pmtiles file** (for example one a friend downloaded).
+- Map data © OpenStreetMap contributors, served by Protomaps.
+
 ## Privacy
 No accounts, servers or internet. Everything is end-to-end encrypted between phones. Messages and
 call history stay on your phone; delete conversations or set automatic deletion in Settings.

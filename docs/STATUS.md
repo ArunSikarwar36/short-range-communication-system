@@ -17,6 +17,18 @@ sense yet. Everything below the radio and the real microphone/speaker is built a
 | 6 Relay | DSDV routing, TTL/hop limit, loop prevention, route expiry/withdrawal, dedupe, relay authorisation (paired only), per-source rate limit, battery policy, topology screen | Line-topology routing tests; relayed messages and calls; withdrawal when relay disappears | A–B–C range extension in the field; battery/throughput impact. Multi-group bridging is not possible with standard Wi-Fi Direct (see ARCHITECTURE.md) |
 | 7 Hardening & release | Threat model, fuzz tests, lint clean, R8 release build, signing setup, data excluded from backup, user guide | Protocol fuzzing (20k random + mutations), lint | Compatibility matrix, long-call and battery tests, independent security review, release key |
 
+## Offline maps (2026-11-26)
+- **Built on Android and iPhone.** Download an area around a position once (2 / 5 / 15 / 30 km,
+  street detail up to 8 km) from the newest Protomaps world build, or import a `.pmtiles` file; the
+  map then works with no internet. Shows this phone, friends who share their location and SOS
+  alerts. Style, fonts (incl. Devanagari) and icons are bundled.
+- **Tested:** `PmtilesTest` (Hilbert IDs, directories, extraction keeps exactly the area's tiles,
+  cancel, leaf directories), real extract of central New Delhi (174 tiles, 5.1 MB) validated with the
+  reference PMTiles reader; Android emulator: in-app download of a 2 km area (46 tiles, 1.9 MB) and the
+  offline map rendered with streets, labels, icons and this phone's position. iPhone: built in CI.
+- **Not yet:** friend/SOS markers on the map seen on screen (logic shared with the radar), routes and
+  sharing a map area between phones over SRCS. The APK is now ~60 MB (MapLibre for 3 CPU types).
+
 ## Live location and SOS (2026-11-26)
 - **Built on Android and iPhone, shared logic in core (`LocationService`).** Opt-in sharing with paired
   phones and/or the group (through the host), 15 min / 1 h / 8 h, stop at any time; updates only

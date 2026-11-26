@@ -29,6 +29,11 @@ Android phones (same shared core, same protocol).
 4. Compare the 6-digit code on both phones and tap **Codes match** on both.
 5. Message, call or join groups. Allow the **microphone** on the first call.
 
+## Offline maps
+
+Map icon (top left) → **Map areas**: download an area once with internet, or import a `.pmtiles` file
+with the Files picker. The map uses MapLibre and the same bundled style and fonts as Android.
+
 ## Limits
 
 - The iPhone cannot host a group and needs an Android host in range.

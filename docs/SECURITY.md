@@ -55,6 +55,9 @@
   phones / the user's group, sealed end to end, and sharing always has an end time. A group host can
   read and forward group members' positions (same trust as group text). Friends' positions are kept
   in memory only and expire after 30 minutes without updates.
+- **Downloading a map area reveals the area to the map server** (Protomaps' public build server sees
+  the requested tile ranges, i.e. roughly where you are, and your IP address). Nothing is sent once the
+  area is on the phone. Importing a `.pmtiles` file avoids the server entirely.
 - **Pairing depends on users actually comparing the code.**
 - **Denial of service** by radio jamming or a misbehaving relay dropping traffic cannot be prevented.
 - **iOS uses pure-Kotlin crypto primitives** (`PortableCrypto`: X25519 after TweetNaCl,

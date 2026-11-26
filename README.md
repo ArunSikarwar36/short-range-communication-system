@@ -13,6 +13,7 @@ other.
 | **Walkie-Talkie** | Instant push-to-talk channels |
 | **Group Channel** | Group calls with several phones |
 | **Offline Chat** | Text messages with delivery and read receipts, delivered later when out of range |
+| **Offline Maps** | Download your area once, then see yourself, friends and SOS alerts on the map without internet |
 | **Signal Relay** | Phones in between pass calls and messages on, end-to-end encrypted |
 
 ## Download
