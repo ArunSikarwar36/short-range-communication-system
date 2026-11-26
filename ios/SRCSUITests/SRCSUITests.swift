@@ -14,6 +14,16 @@ final class SRCSUITests: XCTestCase {
         add(a)
     }
 
+    /// Scrolls the home list until [element] exists (List rows off screen are not in the hierarchy).
+    private func scrollTo(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 8) -> Bool {
+        if element.waitForExistence(timeout: 3) { return true }
+        for _ in 0..<maxSwipes {
+            app.swipeUp()
+            if element.waitForExistence(timeout: 2) { return true }
+        }
+        return false
+    }
+
     func testPairAndMessageWithDesktopTestPhone() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-resetForUITest"]
@@ -36,7 +46,7 @@ final class SRCSUITests: XCTestCase {
 
         // Connect to the desktop test phone.
         let address = app.textFields["addressField"]
-        XCTAssertTrue(address.waitForExistence(timeout: 10))
+        XCTAssertTrue(scrollTo(address, in: app), "address field")
         address.tap()
         address.typeText("127.0.0.1:47710")
         app.buttons["connectButton"].tap()
@@ -48,10 +58,8 @@ final class SRCSUITests: XCTestCase {
         match.tap()
         // The list has scrolled to the address field; the paired phone's row appears just below it.
         let chat = app.buttons["chat-Desktop test phone"]
-        if !chat.waitForExistence(timeout: 30) {
-            app.swipeUp()
-        }
-        XCTAssertTrue(chat.waitForExistence(timeout: 10), "paired phone listed")
+        _ = chat.waitForExistence(timeout: 20)
+        XCTAssertTrue(scrollTo(chat, in: app), "paired phone listed")
         snap(app, "04-paired")
 
         // Message and echo.
