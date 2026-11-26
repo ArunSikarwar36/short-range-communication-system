@@ -5,7 +5,7 @@ package ai.paai.link.core.app
  * reached, not a measured distance (phones share no location):
  * inner = linked directly, middle = reached through a relay, outer = nearby but not linked yet.
  */
-enum class RadarRing(val radius: Float) { LINKED(0.36f), RELAYED(0.62f), NEARBY(0.86f) }
+enum class RadarRing(val radius: Float) { LINKED(0.46f), RELAYED(0.68f), NEARBY(0.88f) }
 
 /** One phone on the radar. [angleDeg] is clockwise from 12 o'clock; [radius] is a fraction of the radar radius. */
 data class RadarDot(

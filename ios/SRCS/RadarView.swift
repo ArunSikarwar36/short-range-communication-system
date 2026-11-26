@@ -31,7 +31,7 @@ struct RadarView: View {
                             let r = min(size.width, size.height) / 2
                             g.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)),
                                    with: .radialGradient(Gradient(colors: [Self.accent.opacity(0.16), .clear]), center: c, startRadius: 0, endRadius: r))
-                            for f in [0.36, 0.62, 0.86] {
+                            for f in [0.46, 0.68, 0.88] {
                                 let rr = r * f
                                 g.stroke(Path(ellipseIn: CGRect(x: c.x - rr, y: c.y - rr, width: 2 * rr, height: 2 * rr)), with: .color(Self.accentDim.opacity(0.7)), lineWidth: 1)
                             }
