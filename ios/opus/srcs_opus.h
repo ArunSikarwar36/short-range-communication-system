@@ -1,6 +1,7 @@
 #ifndef SRCS_OPUS_H
 #define SRCS_OPUS_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 /* Thin, non-variadic wrapper around libopus for Swift. Mirrors app/src/main/cpp/opus_jni.c. */
