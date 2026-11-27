@@ -66,21 +66,21 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GroupScreen(vm: LinkViewModel, gate: PermissionGate, onBack: () -> Unit, onChat: (DeviceId) -> Unit) {
+fun GroupScreen(vm: LinkViewModel, gate: PermissionGate, onBack: (() -> Unit)?, onChat: (DeviceId) -> Unit, header: (@Composable () -> Unit)? = null) {
     val group by vm.group.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text(group?.name ?: "Group & walkie-talkie") },
-            navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+            title = { Text(if (onBack == null) "Team" else group?.name ?: "Group & walkie-talkie", fontWeight = FontWeight.Bold) },
+            navigationIcon = { if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = LinkColors.Background),
         )
-        if (group == null) CreateGroup(vm, gate) else ActiveGroup(vm, onChat)
+        if (group == null) CreateGroup(vm, gate, header) else ActiveGroup(vm, onChat, header)
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CreateGroup(vm: LinkViewModel, gate: PermissionGate) {
+private fun CreateGroup(vm: LinkViewModel, gate: PermissionGate, header: (@Composable () -> Unit)?) {
     val online by vm.online.collectAsStateWithLifecycle()
     val peers by vm.peerStatus.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -91,6 +91,7 @@ private fun CreateGroup(vm: LinkViewModel, gate: PermissionGate) {
     val chosen = selected.filterValues { it }.keys.toList()
 
     LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (header != null) item { header() }
         item {
             SectionCard("New group") {
                 OutlinedTextField(name, { name = it.take(40) }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -138,7 +139,7 @@ private fun CreateGroup(vm: LinkViewModel, gate: PermissionGate) {
 }
 
 @Composable
-private fun ActiveGroup(vm: LinkViewModel, onChat: (DeviceId) -> Unit) {
+private fun ActiveGroup(vm: LinkViewModel, onChat: (DeviceId) -> Unit, header: (@Composable () -> Unit)?) {
     val group by vm.group.collectAsStateWithLifecycle()
     val ptt by vm.ptt.collectAsStateWithLifecycle()
     val session by vm.groupSession.collectAsStateWithLifecycle()
@@ -161,6 +162,7 @@ private fun ActiveGroup(vm: LinkViewModel, onChat: (DeviceId) -> Unit) {
     }
 
     LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (header != null) item { header() }
         item {
             SectionCard(if (g.mode == GroupMode.PTT) "Walkie-talkie" else "Group call") {
                 StatusLine(

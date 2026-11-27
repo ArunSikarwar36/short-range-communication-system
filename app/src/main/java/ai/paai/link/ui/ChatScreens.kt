@@ -50,13 +50,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConversationsScreen(vm: LinkViewModel, onOpen: (DeviceId) -> Unit, onBack: () -> Unit) {
+fun ConversationsScreen(vm: LinkViewModel, onOpen: (DeviceId) -> Unit, onBack: (() -> Unit)?) {
     val rows by vm.conversations.collectAsStateWithLifecycle()
     val paired by vm.paired.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text("Messages") },
-            navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+            navigationIcon = { if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = LinkColors.Background),
         )
         LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {

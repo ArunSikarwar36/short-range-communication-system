@@ -173,7 +173,8 @@ fun LinkApp(vm: LinkViewModel, pendingAction: MutableStateFlow<String?>) {
             return@Scaffold
         }
         NavHost(nav, startDestination = "home", modifier = Modifier.padding(pad).fillMaxSize()) {
-            composable("home") { HomeScreen(vm, gate, onNavigate = { nav.navigate(it) }) }
+            composable("home") { MainShell(vm, gate, onNavigate = { nav.navigate(it) }) }
+            composable("devices") { HomeScreen(vm, gate, onNavigate = { nav.navigate(it) }) }
             composable("chats") { ConversationsScreen(vm, onOpen = { nav.navigate("chat/${it.hex}") }, onBack = { nav.popBackStack() }) }
             composable("chat/{id}") { entry ->
                 val id = entry.arguments?.getString("id")?.let { runCatching { DeviceId.fromHex(it) }.getOrNull() }

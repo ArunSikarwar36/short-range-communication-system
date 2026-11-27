@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -69,13 +70,15 @@ fun CallScreen(vm: LinkViewModel, gate: PermissionGate) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(LinkColors.Background)
-            .systemBarsPadding()
-            .padding(24.dp),
+            .background(androidx.compose.ui.graphics.Brush.radialGradient(
+                listOf(LinkColors.Accent.copy(alpha = if (call.phase == CallPhase.ACTIVE) 0.30f else 0.16f), LinkColors.Background),
+                radius = 1400f,
+            ))
+            .systemBarsPadding(),
     ) {
         Column(Modifier.align(Alignment.TopCenter), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(48.dp))
-            Avatar(name, active = call.phase == CallPhase.ACTIVE, sizeDp = 112)
+            Spacer(Modifier.height(72.dp))
+            AvatarBubble(name, sizeDp = 128, ring = if (call.phase == CallPhase.ACTIVE) LinkColors.Good else Color.White)
             Spacer(Modifier.height(20.dp))
             Text(name, fontSize = 30.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
@@ -101,17 +104,17 @@ fun CallScreen(vm: LinkViewModel, gate: PermissionGate) {
             }
         }
 
-        Column(Modifier.align(Alignment.BottomCenter), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .background(Color(0xFF0B1118), androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .padding(top = 24.dp, bottom = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             if (call.phase.hasMedia && route.available.size > 1) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    route.available.forEach { r ->
-                        FilterChip(selected = route.current == r, onClick = { vm.selectRoute(r) }, label = { Text(r.label) },
-                            leadingIcon = if (r == AudioRoute.SPEAKER) ({ Icon(painterResource(R.drawable.ic_speaker), null, Modifier.size(18.dp)) }) else null)
-                    }
-                }
-                Spacer(Modifier.height(28.dp))
+                Text("Audio: ${route.current?.label ?: "-"}", color = LinkColors.Muted, style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(12.dp))
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(40.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = Arrangement.spacedBy(36.dp), verticalAlignment = Alignment.CenterVertically) {
                 when (call.phase) {
                     CallPhase.INCOMING_RINGING -> {
                         RoundButton(R.drawable.ic_call_end, "Decline", LinkColors.Bad) { vm.reject() }
@@ -122,10 +125,14 @@ fun CallScreen(vm: LinkViewModel, gate: PermissionGate) {
                     CallPhase.ENDED, CallPhase.FAILED, CallPhase.ENDING -> {}
                     else -> {
                         if (call.phase.hasMedia) {
-                            RoundButton(if (muted) R.drawable.ic_mic_off else R.drawable.ic_mic, if (muted) "Unmute" else "Mute",
-                                if (muted) LinkColors.Warn else LinkColors.SurfaceHigh) { vm.setMuted(!muted) }
+                            RoundButton(if (muted) R.drawable.ic_mic_off else R.drawable.ic_mic, if (muted) "Mic Off" else "Mic On",
+                                if (muted) LinkColors.Warn else Color(0xFF2A3644)) { vm.setMuted(!muted) }
+                            RoundButton(R.drawable.ic_speaker, "Audio", Color.White, iconTint = Color(0xFF0A0F16)) {
+                                val all = route.available
+                                if (all.isNotEmpty()) vm.selectRoute(all[(all.indexOf(route.current) + 1) % all.size])
+                            }
                         }
-                        RoundButton(R.drawable.ic_call_end, "End call", LinkColors.Bad) { vm.hangup() }
+                        RoundButton(R.drawable.ic_call_end, "End", LinkColors.Bad) { vm.hangup() }
                     }
                 }
             }
@@ -135,13 +142,13 @@ fun CallScreen(vm: LinkViewModel, gate: PermissionGate) {
 }
 
 @Composable
-private fun RoundButton(icon: Int?, label: String, color: Color, onClick: () -> Unit) {
+private fun RoundButton(icon: Int?, label: String, color: Color, iconTint: Color = Color.White, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         FilledIconButton(
             onClick = onClick,
             modifier = Modifier.size(72.dp),
             shape = CircleShape,
-            colors = IconButtonDefaults.filledIconButtonColors(containerColor = color, contentColor = Color.White),
+            colors = IconButtonDefaults.filledIconButtonColors(containerColor = color, contentColor = iconTint),
         ) {
             if (icon != null) Icon(painterResource(icon), contentDescription = label, modifier = Modifier.size(32.dp))
             else Icon(Icons.Default.Call, contentDescription = label, modifier = Modifier.size(32.dp))

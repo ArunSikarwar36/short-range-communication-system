@@ -64,15 +64,15 @@ import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.Point
 
-private const val PEOPLE = "srcs-people"
+internal const val PEOPLE = "srcs-people"
 
 /** Style JSON for one downloaded area, with fonts and icons from the app's assets (no internet). */
-private fun styleFor(context: android.content.Context, region: MapRegion): String =
+internal fun styleFor(context: android.content.Context, region: MapRegion): String =
     context.assets.open("map/style-dark.json").bufferedReader().use { it.readText() }
         .replace("{MAP_URL}", "pmtiles://file://${region.path}")
         .replace("{ASSETS}", "asset://map")
 
-private fun addPeopleLayers(style: Style) {
+internal fun addPeopleLayers(style: Style) {
     style.addSource(GeoJsonSource(PEOPLE, FeatureCollection.fromFeatures(emptyList())))
     fun kind(k: String) = Expression.eq(Expression.get("kind"), Expression.literal(k))
     style.addLayer(
@@ -103,7 +103,7 @@ private fun addPeopleLayers(style: Style) {
     )
 }
 
-private fun feature(kind: String, name: String, lat: Double, lon: Double) =
+internal fun feature(kind: String, name: String, lat: Double, lon: Double) =
     Feature.fromGeometry(Point.fromLngLat(lon, lat)).apply { addStringProperty("kind", kind); addStringProperty("name", name) }
 
 /**
@@ -113,7 +113,7 @@ private fun feature(kind: String, name: String, lat: Double, lon: Double) =
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("MissingPermission")
 @Composable
-fun MapScreen(vm: LinkViewModel, focusLat: Double?, focusLon: Double?, onBack: () -> Unit, onManage: () -> Unit) {
+fun MapScreen(vm: LinkViewModel, focusLat: Double?, focusLon: Double?, onBack: (() -> Unit)?, onManage: () -> Unit) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val regions by vm.c.maps.list.collectAsStateWithLifecycle()
@@ -137,7 +137,7 @@ fun MapScreen(vm: LinkViewModel, focusLat: Double?, focusLon: Double?, onBack: (
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text(selected?.name?.replace('_', ' ') ?: "Offline map") },
-            navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+            navigationIcon = { if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
             actions = { TextButton(onClick = onManage) { Text("Map areas") } },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = LinkColors.Background),
         )
