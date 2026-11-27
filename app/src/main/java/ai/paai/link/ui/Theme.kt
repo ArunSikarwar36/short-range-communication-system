@@ -1,6 +1,7 @@
 package ai.paai.link.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,8 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -62,18 +61,28 @@ fun LinkTheme(content: @Composable () -> Unit) = MaterialTheme(colorScheme = sch
 
 @Composable
 fun SectionCard(title: String, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null, content: @Composable () -> Unit) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = LinkColors.Surface),
+    Column(
+        modifier.fillMaxWidth().glass(RoundedCornerShape(24.dp), Color(0x12FFFFFF), Color(0x1AFFFFFF)).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                action?.invoke()
-            }
-            content()
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            action?.invoke()
         }
+        content()
+    }
+}
+
+/** Card with a colour gradient (DJ Mode, invitations). */
+@Composable
+fun GradientCard(title: String, colors: List<Color>, line: Color, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Column(
+        modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Brush.linearGradient(colors), RoundedCornerShape(24.dp))
+            .border(1.dp, line, RoundedCornerShape(24.dp)).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Color(0xFFE9D5FF))
+        content()
     }
 }
 

@@ -13,6 +13,7 @@ import ai.paai.link.core.location.Geo
 import ai.paai.link.core.location.LocationService
 import ai.paai.link.location.AndroidGps
 import ai.paai.link.maps.MapsController
+import ai.paai.link.update.UpdateManager
 import ai.paai.link.core.media.MediaCoordinator
 import ai.paai.link.core.media.MediaHooks
 import ai.paai.link.core.messaging.MessageStatus
@@ -137,6 +138,8 @@ class AppContainer(val app: Application) {
     /** True while the offline map or map download screen is open (they show this phone's position). */
     val mapOpen = MutableStateFlow(false)
     val maps = MapsController(app, log, scope)
+    /** Optional check for a newer SRCS on GitHub (the only other internet use besides maps). */
+    val updates = UpdateManager(app, log, scope)
 
     init {
         scope.launch {

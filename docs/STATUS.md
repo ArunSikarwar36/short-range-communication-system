@@ -109,3 +109,19 @@ adb emu redir add udp:47701:47701     # lets the desktop send voice into the emu
 In the app: Online → Diagnostics → Connect by address `10.0.2.2:47710` → Codes match. The desktop
 phone echoes messages and answers calls by sending your own Opus audio back. Write `call`,
 `hangup` or `msg <text>` into `D:\android-build\demo-peer.cmd` to drive it.
+
+## 0.5.0 — new look and in-app updates (2026-11-27)
+
+- New Android design (previewed as a design canvas first): full-screen map with a glowing radar,
+  one glossy main button, glass panels, small round buttons for SOS / chat / DJ, a new tab bar.
+  Home has three states: offline ("Go online"), nobody nearby ("Scan for phones", "Host a group",
+  "Devices") and connected (mic + "Hold to talk" + channel strip).
+- Tapping a connected phone (radar or Team list) opens an options sheet: Call, Walkie-talkie,
+  Message, Share location, On the map, DJ Mode, Rename, Unpair.
+- Team tab: purple header, stats (nearby / connected / farthest), glass list with call buttons.
+  Call screen: purple glow, pulsing rings, glass control bar.
+- In-app updates (`update/UpdateManager.kt`): asks api.github.com for the latest release at most
+  every 6 hours when online (Settings → App updates can turn it off, Me → App updates checks now).
+  The APK is downloaded to the app cache and only handed to the Android installer if it is the
+  same package, signed with the same key and newer. Release assets must keep the name `SRCS.apk`
+  and the tag `vX.Y.Z`.

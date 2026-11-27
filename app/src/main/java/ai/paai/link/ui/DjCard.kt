@@ -3,11 +3,15 @@ package ai.paai.link.ui
 import ai.paai.link.core.dj.DjRole
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -24,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -41,7 +46,7 @@ fun DjCard(vm: LinkViewModel, isHost: Boolean) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (uris.isNotEmpty()) vm.djAddSongs(uris) }
     var request by remember { mutableStateOf("") }
 
-    SectionCard("DJ Mode") {
+    GradientCard("DJ MODE" + if (dj.role == DjRole.DJ) " · YOU'RE HOSTING" else "", listOf(Color(0x598B5CF6), Color(0x38EC4899)), Color(0x4DC4A0FF)) {
         when (dj.role) {
             DjRole.NONE -> {
                 if (isHost) {
@@ -109,8 +114,17 @@ private fun NowPlaying(title: String?, artist: String?, playing: Boolean, positi
         Hint("Nothing playing yet")
         return
     }
-    Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    if (!artist.isNullOrBlank()) Hint(artist)
-    if (durationMs > 0) LinearProgressIndicator({ (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) }, Modifier.fillMaxWidth())
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.foundation.layout.Box(
+            Modifier.size(52.dp).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFA78BFA), Color(0xFFEC4899))), androidx.compose.foundation.shape.RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center,
+        ) { androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(ai.paai.link.R.drawable.ic_music), null, tint = Color.White, modifier = Modifier.size(26.dp)) }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (!artist.isNullOrBlank()) Hint(artist)
+        }
+    }
+    if (durationMs > 0) LinearProgressIndicator({ (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) }, Modifier.fillMaxWidth(), color = Color.White, trackColor = Color(0x2EFFFFFF))
     Hint((if (playing) "Playing" else "Paused") + " · " + formatDuration(positionMs) + if (durationMs > 0) " / " + formatDuration(durationMs) else "")
 }

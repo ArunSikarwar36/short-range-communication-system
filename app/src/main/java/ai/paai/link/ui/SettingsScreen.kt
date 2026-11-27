@@ -95,6 +95,33 @@ fun SettingsScreen(vm: LinkViewModel, onBack: () -> Unit) {
                 }
             }
             item {
+                val up by vm.c.updates.state.collectAsStateWithLifecycle()
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                SectionCard("App updates") {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Check for updates automatically")
+                            Hint("When the phone has internet, SRCS asks GitHub at most every 6 hours whether a newer version exists. Nothing about you or your contacts is sent.")
+                        }
+                        Switch(up.autoCheck, { on -> vm.c.updates.setAutoCheck(on) })
+                    }
+                    Hint(
+                        when {
+                            up.checking -> "Checking…"
+                            up.progress != null -> "Downloading… ${(up.progress!! * 100).toInt()}%"
+                            up.available != null -> "Version ${up.available!!.version} is available (you have ${vm.c.updates.currentVersion})"
+                            up.error != null -> up.error!!
+                            up.lastResult != null -> up.lastResult!!
+                            else -> "This is version ${vm.c.updates.currentVersion}"
+                        },
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (up.available != null) Button(onClick = { vm.c.updates.downloadAndInstall(ctx) }) { Text("Install update") }
+                        OutlinedButton(onClick = { vm.c.updates.check() }) { Text("Check now") }
+                    }
+                }
+            }
+            item {
                 SectionCard("Groups") {
                     SettingSlider(
                         label = { "Maximum group size: $it (including you)" },

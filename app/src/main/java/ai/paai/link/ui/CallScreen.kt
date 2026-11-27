@@ -5,6 +5,18 @@ import ai.paai.link.audio.AudioRoute
 import ai.paai.link.core.call.CallPhase
 import ai.paai.link.core.media.MediaStats
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,21 +79,41 @@ fun CallScreen(vm: LinkViewModel, gate: PermissionGate) {
     }
     BackHandler(enabled = call.phase.isLive) { /* keep the call screen until the call ends */ }
 
+    val live = call.phase == CallPhase.ACTIVE || call.phase == CallPhase.RECONNECTING
+    val pulse = rememberInfiniteTransition(label = "ring")
+    val p by pulse.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "p")
     Box(
         Modifier
             .fillMaxSize()
-            .background(androidx.compose.ui.graphics.Brush.radialGradient(
-                listOf(LinkColors.Accent.copy(alpha = if (call.phase == CallPhase.ACTIVE) 0.30f else 0.16f), LinkColors.Background),
-                radius = 1400f,
-            ))
+            .background(Brush.radialGradient(listOf(Color(0xFF3B1A5C), Color(0xFF160D26), Color(0xFF07070C)), center = Offset(540f, 800f), radius = 1500f))
             .systemBarsPadding(),
     ) {
-        Column(Modifier.align(Alignment.TopCenter), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(72.dp))
-            AvatarBubble(name, sizeDp = 128, ring = if (call.phase == CallPhase.ACTIVE) LinkColors.Good else Color.White)
+        Column(Modifier.align(Alignment.TopCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(20.dp))
-            Text(name, fontSize = 30.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.glass(RoundedCornerShape(50)).padding(horizontal = 12.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.Lock, null, tint = LinkColors.Good, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("End-to-end encrypted", color = Ui.Text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(Modifier.height(40.dp))
+            Box(Modifier.size(300.dp), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val r = size.minDimension / 2
+                    for (k in 0..1) {
+                        val q = (p + k * 0.5f) % 1f
+                        drawCircle(Ui.Purple.copy(alpha = (1 - q) * (if (call.phase == CallPhase.ENDED || call.phase == CallPhase.FAILED) 0f else 0.6f)), r * (0.5f + 0.5f * q), style = Stroke(2.dp.toPx()))
+                    }
+                }
+                Box(
+                    Modifier.size(150.dp).shadow(40.dp, CircleShape, ambientColor = Ui.Purple, spotColor = Ui.Purple)
+                        .background(Brush.linearGradient(listOf(Ui.Purple, Ui.Pink)), CircleShape).padding(4.dp),
+                ) { AvatarBubble(name, sizeDp = 142, ring = Color.Transparent) }
+            }
+            Text(name, fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Ui.Text)
+            Spacer(Modifier.height(4.dp))
             val status = when (call.phase) {
                 CallPhase.OUTGOING_INVITE -> "Calling…"
                 CallPhase.REMOTE_RINGING -> "Ringing…"
@@ -95,48 +127,42 @@ fun CallScreen(vm: LinkViewModel, gate: PermissionGate) {
             }
             Text(
                 status,
-                color = if (call.phase == CallPhase.RECONNECTING || call.phase == CallPhase.FAILED) LinkColors.Warn else LinkColors.Muted,
-                style = MaterialTheme.typography.titleMedium,
+                color = if (call.phase == CallPhase.RECONNECTING || call.phase == CallPhase.FAILED) LinkColors.Warn else Color(0xFFC9BDE0),
+                fontSize = 15.sp,
             )
-            if (call.phase == CallPhase.ACTIVE || call.phase == CallPhase.RECONNECTING) {
-                Spacer(Modifier.height(12.dp))
+            if (live) {
+                Spacer(Modifier.height(16.dp))
                 QualityBars(stats)
             }
         }
 
-        Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .background(Color(0xFF0B1118), androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .padding(top = 24.dp, bottom = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             if (call.phase.hasMedia && route.available.size > 1) {
-                Text("Audio: ${route.current?.label ?: "-"}", color = LinkColors.Muted, style = MaterialTheme.typography.labelMedium)
-                Spacer(Modifier.height(12.dp))
+                Text("Audio: ${route.current?.label ?: "-"}", color = Color(0xFFC9BDE0), fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Spacer(Modifier.height(10.dp))
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(36.dp), verticalAlignment = Alignment.CenterVertically) {
-                when (call.phase) {
-                    CallPhase.INCOMING_RINGING -> {
-                        RoundButton(R.drawable.ic_call_end, "Decline", LinkColors.Bad) { vm.reject() }
-                        RoundButton(null, "Answer", LinkColors.Good) {
-                            gate.withPermissions(Perms.microphone, Reasons.MIC, Perms.bluetooth) { vm.accept() }
+            if (call.phase != CallPhase.ENDED && call.phase != CallPhase.FAILED && call.phase != CallPhase.ENDING) Row(
+                Modifier.fillMaxWidth().glass(RoundedCornerShape(32.dp), Color(0x12FFFFFF), Color(0x1AFFFFFF)).padding(vertical = 18.dp, horizontal = 12.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (call.phase == CallPhase.INCOMING_RINGING) {
+                    RoundButton(R.drawable.ic_call_end, "Decline", Ui.Red) { vm.reject() }
+                    RoundButton(null, "Answer", Color(0xFF22C55E)) {
+                        gate.withPermissions(Perms.microphone, Reasons.MIC, Perms.bluetooth) { vm.accept() }
+                    }
+                } else {
+                    if (call.phase.hasMedia) {
+                        RoundButton(if (muted) R.drawable.ic_mic_off else R.drawable.ic_mic, if (muted) "Unmute" else "Mute",
+                            if (muted) LinkColors.Warn else Color(0x1FFFFFFF)) { vm.setMuted(!muted) }
+                        RoundButton(R.drawable.ic_speaker, route.current?.label ?: "Audio", Color.White, iconTint = Color(0xFF1A1030)) {
+                            val all = route.available
+                            if (all.isNotEmpty()) vm.selectRoute(all[(all.indexOf(route.current) + 1) % all.size])
                         }
                     }
-                    CallPhase.ENDED, CallPhase.FAILED, CallPhase.ENDING -> {}
-                    else -> {
-                        if (call.phase.hasMedia) {
-                            RoundButton(if (muted) R.drawable.ic_mic_off else R.drawable.ic_mic, if (muted) "Mic Off" else "Mic On",
-                                if (muted) LinkColors.Warn else Color(0xFF2A3644)) { vm.setMuted(!muted) }
-                            RoundButton(R.drawable.ic_speaker, "Audio", Color.White, iconTint = Color(0xFF0A0F16)) {
-                                val all = route.available
-                                if (all.isNotEmpty()) vm.selectRoute(all[(all.indexOf(route.current) + 1) % all.size])
-                            }
-                        }
-                        RoundButton(R.drawable.ic_call_end, "End", LinkColors.Bad) { vm.hangup() }
-                    }
+                    RoundButton(R.drawable.ic_call_end, "End", Ui.Red) { vm.hangup() }
                 }
             }
-            Spacer(Modifier.height(32.dp))
         }
     }
 }
@@ -146,15 +172,15 @@ private fun RoundButton(icon: Int?, label: String, color: Color, iconTint: Color
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         FilledIconButton(
             onClick = onClick,
-            modifier = Modifier.size(72.dp),
+            modifier = Modifier.size(62.dp),
             shape = CircleShape,
             colors = IconButtonDefaults.filledIconButtonColors(containerColor = color, contentColor = iconTint),
         ) {
-            if (icon != null) Icon(painterResource(icon), contentDescription = label, modifier = Modifier.size(32.dp))
-            else Icon(Icons.Default.Call, contentDescription = label, modifier = Modifier.size(32.dp))
+            if (icon != null) Icon(painterResource(icon), contentDescription = label, modifier = Modifier.size(26.dp))
+            else Icon(Icons.Default.Call, contentDescription = label, modifier = Modifier.size(26.dp))
         }
         Spacer(Modifier.height(6.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium, color = LinkColors.Muted)
+        Text(label, fontSize = 12.sp, color = Color(0xFFC9BDE0), maxLines = 1)
     }
 }
 

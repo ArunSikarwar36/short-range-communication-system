@@ -51,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
@@ -69,9 +70,10 @@ import kotlinx.coroutines.delay
 fun GroupScreen(vm: LinkViewModel, gate: PermissionGate, onBack: (() -> Unit)?, onChat: (DeviceId) -> Unit, header: (@Composable () -> Unit)? = null) {
     val group by vm.group.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text(if (onBack == null) "Team" else group?.name ?: "Group & walkie-talkie", fontWeight = FontWeight.Bold) },
-            navigationIcon = { if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+        // In the Team tab the header draws its own title.
+        if (onBack != null) TopAppBar(
+            title = { Text(group?.name ?: "Group & walkie-talkie", fontWeight = FontWeight.Bold) },
+            navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = LinkColors.Background),
         )
         if (group == null) CreateGroup(vm, gate, header) else ActiveGroup(vm, onChat, header)
@@ -90,7 +92,7 @@ private fun CreateGroup(vm: LinkViewModel, gate: PermissionGate, header: (@Compo
     val candidates = peers.filter { it.trusted && it.reachable }
     val chosen = selected.filterValues { it }.keys.toList()
 
-    LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (header != null) item { header() }
         item {
             SectionCard("New group") {
@@ -161,7 +163,7 @@ private fun ActiveGroup(vm: LinkViewModel, onChat: (DeviceId) -> Unit, header: (
         }
     }
 
-    LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (header != null) item { header() }
         item {
             SectionCard(if (g.mode == GroupMode.PTT) "Walkie-talkie" else "Group call") {
@@ -260,16 +262,17 @@ private fun ActiveGroup(vm: LinkViewModel, onChat: (DeviceId) -> Unit, header: (
 @Composable
 private fun TalkButton(talking: Boolean, busy: Boolean, level: Float, onPress: () -> Unit, onRelease: () -> Unit) {
     val color = when {
-        talking -> LinkColors.Accent
+        talking -> Color(0xFFFF1F2D)
         busy -> LinkColors.SurfaceHigh
-        else -> LinkColors.AccentDim
+        else -> Ui.Red
     }
     Box(
         Modifier
             .size(180.dp + (level * 40).dp)
-            .background(color.copy(alpha = 0.25f), CircleShape)
-            .padding(14.dp)
-            .background(color, CircleShape)
+            .background(androidx.compose.ui.graphics.Brush.radialGradient(listOf(color.copy(alpha = 0.45f), color.copy(alpha = 0.08f))), CircleShape)
+            .padding(16.dp)
+            .shadow(if (busy) 0.dp else 24.dp, CircleShape, ambientColor = color, spotColor = color)
+            .background(androidx.compose.ui.graphics.Brush.linearGradient(if (busy) listOf(color, color) else listOf(Ui.RedLight, color)), CircleShape)
             .semantics {
                 role = Role.Button
                 contentDescription = "Push to talk"

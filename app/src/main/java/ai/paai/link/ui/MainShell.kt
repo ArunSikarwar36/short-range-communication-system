@@ -21,20 +21,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -57,35 +50,24 @@ fun MainShell(vm: LinkViewModel, gate: PermissionGate, onNavigate: (String) -> U
     val conversations by vm.conversations.collectAsStateWithLifecycle()
     val invites by vm.invites.collectAsStateWithLifecycle()
     val unread = conversations.sumOf { it.unread }
+    // At most every 6 hours, and only if the user leaves "check for updates" on.
+    LaunchedEffect(Unit) { vm.c.updates.checkInBackground() }
 
     Column(Modifier.fillMaxSize().background(LinkColors.Background)) {
         Box(Modifier.weight(1f)) {
             when (tab) {
                 "home" -> HomeTab(vm, gate, onTab = { tab = it }, onNavigate = onNavigate)
-                "team" -> TeamTab(vm, gate, onChat = { onNavigate("chat/${it.hex}") })
+                "team" -> TeamTab(vm, gate, onChat = { onNavigate("chat/${it.hex}") }, onNavigate = onNavigate, onTab = { tab = it })
                 "map" -> MapScreen(vm, null, null, onBack = null, onManage = { onNavigate("mapareas") })
                 "chats" -> ConversationsScreen(vm, onOpen = { onNavigate("chat/${it.hex}") }, onBack = null)
                 else -> MeTab(vm, gate, onTab = { tab = it }, onNavigate = onNavigate)
             }
         }
-        NavigationBar(containerColor = Color(0xFF0B1118), tonalElevation = 0.dp) {
-            @Composable
-            fun item(id: String, label: String, icon: Painter, badge: Int = 0) = NavigationBarItem(
-                selected = tab == id,
-                onClick = { tab = id },
-                icon = { BadgedBox(badge = { if (badge > 0) Badge { Text("$badge") } }) { Icon(icon, label) } },
-                label = { Text(label, fontSize = 11.sp) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color.White, selectedTextColor = Color.White, indicatorColor = Color(0xFF1B2A3A),
-                    unselectedIconColor = LinkColors.Muted, unselectedTextColor = LinkColors.Muted,
-                ),
-            )
-            item("home", "Home", rememberVectorPainter(Icons.Default.Home))
-            item("team", "Team", painterResource(R.drawable.ic_group), invites.size)
-            item("map", "Map", rememberVectorPainter(Icons.Default.Place))
-            item("chats", "Chats", painterResource(R.drawable.ic_chat), unread)
-            item("me", "Me", rememberVectorPainter(Icons.Default.Person))
-        }
+        SrcsTabBar(
+            selected = tab,
+            accent = when (tab) { "home" -> Ui.RedLight; "team" -> Ui.Purple; else -> LinkColors.Accent },
+            badges = mapOf("team" to invites.size, "chats" to unread),
+        ) { tab = it }
     }
 }
 
@@ -123,7 +105,7 @@ fun MeTab(vm: LinkViewModel, gate: PermissionGate, onTab: (String) -> Unit, onNa
                 Feature("Offline maps", "No internet needed", rememberVectorPainter(Icons.Default.Place), TeamTeal) { onTab("map") },
                 Feature("Live location", "Share with your team", rememberVectorPainter(Icons.Default.LocationOn), LinkColors.Good) { },
                 Feature("Route sharing", "Coming soon", rememberVectorPainter(Icons.Default.Share), LinkColors.Muted) { vm.notify("Route sharing is coming in a later version") },
-                Feature("DJ Mode", "Music for the team", rememberVectorPainter(Icons.Default.PlayArrow), DjPurple) { onTab("team") },
+                Feature("DJ Mode", "Music for the team", painterResource(R.drawable.ic_music), Ui.Purple) { onTab("team") },
                 Feature("Offline chat", "Messages & receipts", painterResource(R.drawable.ic_chat), ChatAmber) { onTab("chats") },
                 Feature("Device relay", "Extend the range", painterResource(R.drawable.ic_stat_link), Color(0xFF60A5FA)) { onNavigate("settings") },
             )
@@ -139,7 +121,18 @@ fun MeTab(vm: LinkViewModel, gate: PermissionGate, onTab: (String) -> Unit, onNa
         if (online) item { SosAlerts(vm, showOnMap) }
         if (online) item { LocationCard(vm, gate, showOnMap) }
         item {
-            Column(Modifier.fillMaxWidth().background(Color(0xFF121A24), RoundedCornerShape(20.dp))) {
+            Column(Modifier.fillMaxWidth().glass(RoundedCornerShape(22.dp), Color(0x0FFFFFFF), Color(0x14FFFFFF))) {
+                val up by vm.c.updates.state.collectAsStateWithLifecycle()
+                MenuRow(
+                    "App updates",
+                    when {
+                        up.checking -> "Checking…"
+                        up.available != null -> "Version ${up.available!!.version} is available · tap to install"
+                        up.error != null -> up.error!!
+                        up.lastResult != null -> up.lastResult!!
+                        else -> "Version ${vm.c.updates.currentVersion} · tap to check"
+                    },
+                ) { if (up.available != null) vm.c.updates.downloadAndInstall(context) else vm.c.updates.check() }
                 MenuRow("Map areas", "Download or import offline maps") { onNavigate("mapareas") }
                 MenuRow("Devices & connections", "Paired phones, rename, unpair, Wi-Fi Direct") { onNavigate("devices") }
                 MenuRow("Settings", "Name, relaying, Wi-Fi Aware, groups") { onNavigate("settings") }
@@ -155,7 +148,7 @@ private class Feature(val title: String, val sub: String, val icon: Painter, val
 @Composable
 private fun FeatureTile(f: Feature, modifier: Modifier) {
     Column(
-        modifier.background(Color(0xFF121A24), RoundedCornerShape(18.dp)).border(1.dp, f.color.copy(alpha = 0.25f), RoundedCornerShape(18.dp))
+        modifier.glass(RoundedCornerShape(20.dp), Color(0x0FFFFFFF), f.color.copy(alpha = 0.22f))
             .clickable(onClick = f.onClick).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
