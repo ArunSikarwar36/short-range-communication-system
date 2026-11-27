@@ -56,6 +56,11 @@ data class Settings(
     val lowBatteryRelayCutoff: Int = 20,
     /** Go online again automatically when the app is opened (the user left it online). */
     val wasOnline: Boolean = false,
+    /**
+     * Use Wi-Fi Aware next to Wi-Fi Direct. Off by default: many phones cannot run both at once,
+     * and Wi-Fi Aware then blocks Wi-Fi Direct completely (seen on a Xiaomi with Android 16).
+     */
+    val useWifiAware: Boolean = false,
 )
 
 private val Context.dataStore by preferencesDataStore("settings")
@@ -69,6 +74,7 @@ class SettingsRepository(private val context: Context) {
         val retention = intPreferencesKey("retention_days")
         val batteryCutoff = intPreferencesKey("low_battery_relay_cutoff")
         val wasOnline = booleanPreferencesKey("was_online")
+        val useWifiAware = booleanPreferencesKey("use_wifi_aware")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -80,6 +86,7 @@ class SettingsRepository(private val context: Context) {
             retentionDays = (p[K.retention] ?: 30).coerceIn(0, 3650),
             lowBatteryRelayCutoff = (p[K.batteryCutoff] ?: 20).coerceIn(0, 100),
             wasOnline = p[K.wasOnline] ?: false,
+            useWifiAware = p[K.useWifiAware] ?: false,
         )
     }
 
@@ -90,7 +97,7 @@ class SettingsRepository(private val context: Context) {
             val s = transform(
                 Settings(
                     p[K.name] ?: "", p[K.onboarded] ?: false, p[K.relay] ?: true, p[K.maxGroup] ?: 6,
-                    p[K.retention] ?: 30, p[K.batteryCutoff] ?: 20, p[K.wasOnline] ?: false,
+                    p[K.retention] ?: 30, p[K.batteryCutoff] ?: 20, p[K.wasOnline] ?: false, p[K.useWifiAware] ?: false,
                 ),
             )
             p[K.name] = s.displayName.trim().take(40)
@@ -100,6 +107,7 @@ class SettingsRepository(private val context: Context) {
             p[K.retention] = s.retentionDays.coerceIn(0, 3650)
             p[K.batteryCutoff] = s.lowBatteryRelayCutoff.coerceIn(0, 100)
             p[K.wasOnline] = s.wasOnline
+            p[K.useWifiAware] = s.useWifiAware
         }
     }
 }

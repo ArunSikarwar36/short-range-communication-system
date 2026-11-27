@@ -17,6 +17,18 @@ sense yet. Everything below the radio and the real microphone/speaker is built a
 | 6 Relay | DSDV routing, TTL/hop limit, loop prevention, route expiry/withdrawal, dedupe, relay authorisation (paired only), per-source rate limit, battery policy, topology screen | Line-topology routing tests; relayed messages and calls; withdrawal when relay disappears | A–B–C range extension in the field; battery/throughput impact. Multi-group bridging is not possible with standard Wi-Fi Direct (see ARCHITECTURE.md) |
 | 7 Hardening & release | Threat model, fuzz tests, lint clean, R8 release build, signing setup, data excluded from backup, user guide | Protocol fuzzing (20k random + mutations), lint | Compatibility matrix, long-call and battery tests, independent security review, release key |
 
+## First real-phone test (2026-11-27)
+- Phones: Xiaomi 25053PC47I (Android 16, Wi-Fi Direct + Wi-Fi Aware) and Redmi K50i (Android 14,
+  Wi-Fi Direct only), indoors.
+- **v0.4.0 failed to connect:** SRCS started Wi-Fi Aware on the Xiaomi, and its Wi-Fi chip cannot run
+  Wi-Fi Aware and Wi-Fi Direct together (`Failed to create P2p iface … existingIface=[STA, NAN]`), so
+  Wi-Fi Direct scans were refused ("busy") while the Redmi only had Wi-Fi Direct.
+- **Fixed in v0.4.1:** Wi-Fi Direct always comes first; Wi-Fi Aware is an opt-in setting
+  (Settings → Connections), and SRCS turns it off by itself if it blocks a Wi-Fi Direct scan.
+- **v0.4.1 result:** discovery, Wi-Fi Direct group (~6 s), link, pairing code on both, one-to-one call
+  ACTIVE for 24 s with the bitrate rising 24 → 32 kbps on both phones (clean link), clean hang-up and
+  audio released. Audio quality as heard by the users: not yet reported.
+
 ## DJ Mode (2026-11-26)
 - **Built on Android and iPhone.** The group host picks songs on the phone (any format the phone
   decodes) and every member hears them: Opus tuned for music (48 kHz mono, 64 kbit/s), encrypted,

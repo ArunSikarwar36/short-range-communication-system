@@ -84,6 +84,17 @@ fun SettingsScreen(vm: LinkViewModel, onBack: () -> Unit) {
                 }
             }
             item {
+                SectionCard("Connections") {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Wi-Fi Aware (experimental)")
+                            Hint("Connect automatically, without a group host, to nearby phones that also have Wi-Fi Aware on. Many phones cannot use Wi-Fi Aware and Wi-Fi Direct at the same time; if scanning stops working, turn this off.")
+                        }
+                        Switch(s.useWifiAware, { on -> vm.setWifiAware(on) })
+                    }
+                }
+            }
+            item {
                 SectionCard("Groups") {
                     SettingSlider(
                         label = { "Maximum group size: $it (including you)" },

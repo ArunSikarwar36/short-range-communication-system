@@ -67,6 +67,8 @@ class WifiDirectController(
     private val log: LogBuffer,
     private val onGroupFormed: (ownerAddress: InetAddress, isOwner: Boolean) -> Unit,
     private val onGroupRemoved: () -> Unit,
+    /** A scan was refused as busy (e.g. Wi-Fi Aware holds the radio). Return true if the caller freed it, to retry. */
+    private val onBusy: () -> Boolean = { false },
 ) {
     private val manager: WifiP2pManager? = context.getSystemService(WifiP2pManager::class.java)
     private val supported = context.packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT) && manager != null
@@ -129,6 +131,21 @@ class WifiDirectController(
 
     fun discover() {
         val ch = channel ?: return fail("Wi-Fi Direct is not ready")
+        manager!!.discoverPeers(ch, object : WifiP2pManager.ActionListener {
+            override fun onSuccess() = _state.update { it.copy(discovering = true, lastError = null) }
+            override fun onFailure(reason: Int) {
+                if (reason == WifiP2pManager.BUSY && onBusy()) {
+                    log.i(TAG, "scan was busy; retrying after freeing the radio")
+                    android.os.Handler(Looper.getMainLooper()).postDelayed({ retryDiscover() }, 1_500)
+                } else {
+                    fail("scan failed: ${reasonText(reason)}")
+                }
+            }
+        })
+    }
+
+    private fun retryDiscover() {
+        val ch = channel ?: return
         manager!!.discoverPeers(ch, listener("scan") { _state.update { it.copy(discovering = true, lastError = null) } })
     }
 

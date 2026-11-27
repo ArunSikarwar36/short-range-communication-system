@@ -110,7 +110,19 @@ class AppContainer(val app: Application) {
         app, log,
         onGroupFormed = { owner, isOwner -> if (!isOwner) dialOwner(owner) },
         onGroupRemoved = { scope.launch { _stack.value?.node?.disconnectAll() } },
+        onBusy = {
+            // Wi-Fi Direct is the link every Android phone has; never let Wi-Fi Aware block it.
+            if (aware.state.value.running) {
+                aware.stop()
+                log.w("app", "Wi-Fi Aware turned off: this phone cannot use it together with Wi-Fi Direct")
+                awareConflict.value = true
+                true
+            } else false
+        },
     )
+
+    /** Set when this phone could not run Wi-Fi Aware and Wi-Fi Direct together. */
+    val awareConflict = MutableStateFlow(false)
 
     /** Wi-Fi Aware: direct phone-to-phone links without a group owner (Android 10+, hardware dependent). */
     val aware = WifiAwareController(
@@ -230,7 +242,7 @@ class AppContainer(val app: Application) {
 
     /** Starts Wi-Fi Aware once the nearby-devices permission is granted (also called after a scan grants it). */
     fun startAwareIfAllowed() {
-        if (_stack.value == null) return
+        if (_stack.value == null || !settings.value.useWifiAware || awareConflict.value) return
         val perm = if (android.os.Build.VERSION.SDK_INT >= 33) Manifest.permission.NEARBY_WIFI_DEVICES else Manifest.permission.ACCESS_FINE_LOCATION
         if (hasPermission(perm)) aware.start()
     }

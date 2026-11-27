@@ -194,6 +194,17 @@ class LinkViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun toast(s: String) { _toasts.tryEmit(s) }
 
+    fun setWifiAware(on: Boolean) = launch {
+        c.settingsRepo.update { it.copy(useWifiAware = on) }
+        if (on) {
+            c.awareConflict.value = false
+            kotlinx.coroutines.delay(200)
+            c.startAwareIfAllowed()
+        } else {
+            c.aware.stop()
+        }
+    }
+
     /** Short message at the bottom of the screen. */
     fun notify(s: String) = toast(s)
 
