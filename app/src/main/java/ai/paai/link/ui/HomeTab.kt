@@ -102,6 +102,7 @@ fun HomeTab(vm: LinkViewModel, gate: PermissionGate, onTab: (String) -> Unit, on
     val regions by vm.c.maps.list.collectAsStateWithLifecycle()
     val autoStatus by vm.autoConnectStatus.collectAsStateWithLifecycle()
     var confirmDisconnect by remember { mutableStateOf(false) }
+    var confirmOffline by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<RadarDot?>(null) }
     var sosDialog by remember { mutableStateOf(false) }
     var joinIphone by remember { mutableStateOf(false) }
@@ -165,7 +166,7 @@ fun HomeTab(vm: LinkViewModel, gate: PermissionGate, onTab: (String) -> Unit, on
                         else -> "Online"
                     },
                     when { !online -> LinkColors.Muted; reachable.isNotEmpty() -> LinkColors.Good; else -> LinkColors.Warn },
-                    onClick = { if (online) vm.goOffline() else goOnline() },
+                    onClick = { if (online) confirmOffline = true else goOnline() },
                 )
                 Spacer(Modifier.width(10.dp))
                 val n = invites.size + links.count { !it.trusted }
@@ -387,6 +388,13 @@ fun HomeTab(vm: LinkViewModel, gate: PermissionGate, onTab: (String) -> Unit, on
     }
 
     if (sosDialog) SosDialog(vm) { sosDialog = false }
+    if (confirmOffline) AlertDialog(
+        onDismissRequest = { confirmOffline = false },
+        title = { Text("Go offline?") },
+        text = { Text("Other phones can no longer call you, message you or reach you on the walkie-talkie until you go online again. SRCS stays offline the next time you open it.") },
+        confirmButton = { TextButton(onClick = { confirmOffline = false; vm.goOffline() }) { Text("Go offline", color = LinkColors.Bad) } },
+        dismissButton = { TextButton(onClick = { confirmOffline = false }) { Text("Stay online") } },
+    )
     if (confirmDisconnect) AlertDialog(
         onDismissRequest = { confirmDisconnect = false },
         title = { Text("Disconnect?") },
