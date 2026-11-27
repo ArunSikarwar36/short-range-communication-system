@@ -41,30 +41,34 @@ class LinkService : Service() {
      * Test hooks for two-phone testing from a computer, because some phones (Xiaomi) block
      * simulated taps: `adb shell dumpsys activity service ai.paai.link/.service.LinkService <cmd>`.
      * Android only lets callers holding the DUMP permission (adb, the system) reach this.
-     * Commands: status, walkie, talk <ms>, leave, disconnect, scan.
+     * Commands: status, walkie, talk <ms>, leave, disconnect, scan, update-check.
      */
     override fun dump(fd: java.io.FileDescriptor?, writer: java.io.PrintWriter, args: Array<out String>?) {
         val c = (application as LinkApplication).container
         val s = c.stack.value
         val cmd = args?.firstOrNull() ?: "status"
-        kotlinx.coroutines.runBlocking {
+        // dump() runs on the main thread: never block it here (actions that need the main thread
+        // would deadlock). Start the action and return; read the result with a later "status".
+        c.scope.launch {
             when (cmd) {
                 "walkie" -> {
                     val peers = s?.node?.peers?.value?.filter { it.trusted && it.reachable }?.map { it.id }.orEmpty()
-                    writer.println(s?.groups?.create("Walkie-talkie", ai.paai.link.core.protocol.GroupMode.PTT, peers) ?: "offline")
+                    c.log.i("test", "walkie: " + (s?.groups?.create("Walkie-talkie", ai.paai.link.core.protocol.GroupMode.PTT, peers) ?: "offline"))
                 }
                 "talk" -> {
                     val ms = args?.getOrNull(1)?.toLongOrNull() ?: 3_000L
                     s?.groups?.pressTalk()
                     kotlinx.coroutines.delay(ms)
                     s?.groups?.releaseTalk()
-                    writer.println("talked for $ms ms")
+                    c.log.i("test", "talked for $ms ms")
                 }
                 "leave" -> s?.groups?.leave()
                 "disconnect" -> c.disconnectAll()
                 "scan" -> { c.autoConnect.resume(); kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { c.wifi.discover() } }
+                "update-check" -> c.updates.check()
             }
         }
+        if (cmd != "status") writer.println("started: $cmd")
         val g = s?.groups?.group?.value
         val w = c.wifi.state.value
         writer.println("online=${s != null} wifi=${w.group} auto=${c.autoConnect.status.value} paused=${c.autoConnect.paused.value} known=${c.autoConnect.knowsAnyPhone}")
