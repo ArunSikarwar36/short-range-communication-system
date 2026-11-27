@@ -14,6 +14,11 @@ import ai.paai.link.core.location.LocationService
 import ai.paai.link.location.AndroidGps
 import ai.paai.link.maps.MapsController
 import ai.paai.link.update.UpdateManager
+import kotlinx.coroutines.flow.MutableSharedFlow
+import ai.paai.link.wifidirect.AutoConnector
+import ai.paai.link.core.group.GroupEvent
+import ai.paai.link.core.protocol.GroupMode
+import ai.paai.link.core.protocol.AppMessage
 import ai.paai.link.core.media.MediaCoordinator
 import ai.paai.link.core.media.MediaHooks
 import ai.paai.link.core.messaging.MessageStatus
@@ -140,6 +145,14 @@ class AppContainer(val app: Application) {
     val maps = MapsController(app, log, scope)
     /** Optional check for a newer SRCS on GitHub (the only other internet use besides maps). */
     val updates = UpdateManager(app, log, scope)
+    /** Short messages for the user that do not come from the network stack ("Kash disconnected"). */
+    val notices = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    /** Reconnects to phones this phone was connected to before. */
+    val autoConnect = AutoConnector(
+        app, log, scope, wifi,
+        enabled = { settings.value.autoConnect && _stack.value != null },
+        canScan = { hasPermission(if (android.os.Build.VERSION.SDK_INT >= 33) Manifest.permission.NEARBY_WIFI_DEVICES else Manifest.permission.ACCESS_FINE_LOCATION) },
+    )
 
     init {
         scope.launch {
@@ -168,6 +181,11 @@ class AppContainer(val app: Application) {
         scope.launch {
             settings.map { it.relayEnabled }.distinctUntilChanged().collect { applyRelayPolicy() }
         }
+        // Remember the phones of a Wi-Fi Direct group once a paired SRCS link runs over it.
+        scope.launch {
+            kotlinx.coroutines.flow.combine(wifi.state.map { it.group }, _stack.flatMapLatest { it?.node?.linkInfos ?: flowOf(emptyList()) }) { g, links -> g to links }
+                .collect { (g, links) -> if (g.formed && g.members.isNotEmpty() && links.any { it.trusted }) autoConnect.remember(g.members) }
+        }
     }
 
     // ------------------------------------------------------------------ online / offline
@@ -183,6 +201,7 @@ class AppContainer(val app: Application) {
             _stack.value = stack
             LinkService.start(app)
             wifi.register()
+            autoConnect.start()
             startAwareIfAllowed()
             registerBattery()
             applyRelayPolicy()
@@ -206,6 +225,7 @@ class AppContainer(val app: Application) {
         val s = _stack.value ?: return
         _busy.value = true
         try {
+            autoConnect.stop()
             wifi.unregister()
             aware.stop()
             unregisterBattery()
@@ -215,6 +235,44 @@ class AppContainer(val app: Application) {
             notifications.cancelAll()
         } finally {
             _busy.value = false
+        }
+    }
+
+    /**
+     * One-tap disconnect: tells the connected phones (so they drop the link too and do not dial
+     * back), leaves any walkie-talkie or group call and leaves the Wi-Fi Direct group.
+     */
+    suspend fun disconnectAll() {
+        val s = _stack.value ?: return
+        autoConnect.pause()
+        val direct = s.node.peers.value.filter { it.trusted && it.reachable && it.direct }
+        for (p in direct) s.node.send(p.id, AppMessage.LinkBye())
+        if (s.calls.state.value.phase.isLive) s.calls.hangup()
+        s.groups.leave()
+        delay(400) // let the goodbyes go out before the radio link drops
+        s.node.disconnectAll() // closes the links and stops the node from dialling them again
+        withContext(Dispatchers.Main) { wifi.disconnect() }
+        log.i("app", "disconnected from ${direct.size} phone(s) on request")
+    }
+
+    /** The other phone tapped Disconnect: drop the link here too and do not reconnect by itself. */
+    internal fun onPeerBye(s: LinkStack, from: DeviceId) {
+        autoConnect.pause()
+        val name = s.node.peerName(from)
+        notices.tryEmit("$name disconnected")
+        // No walkie-talkie left to talk in: end it here too instead of keeping an empty channel.
+        val g = s.groups.group.value
+        if (g != null && (g.host == from || g.members.none { it.id != s.node.selfId && it.id != from })) {
+            scope.launch { s.groups.leave() }
+        }
+        if (!appVisible.value) notifications.showInfo("$name disconnected", "Tap Scan when you want to connect again.")
+        scope.launch {
+            delay(600)
+            val stillLinked = s.node.peers.value.any { it.trusted && it.reachable && it.direct && it.id != from }
+            if (!stillLinked) {
+                s.node.disconnectAll()
+                if (wifi.state.value.group.formed) withContext(Dispatchers.Main) { wifi.disconnect() }
+            }
         }
     }
 
@@ -339,7 +397,10 @@ class LinkStack(private val c: AppContainer, identity: LocalIdentity, engine: An
     val node: LinkNode = LinkNode(identity, c.trustStore, NodeConfig(), c.log)
     val media: MediaCoordinator = MediaCoordinator(node, engine, scope, c.mediaHooks { this })
     val calls: CallManager = CallManager(node, media, scope)
-    val groups: GroupManager = GroupManager(node, media, scope, isCallActive = { calls.state.value.phase.isLive }, maxMembers = { c.settings.value.maxGroupMembers })
+    val groups: GroupManager = GroupManager(
+        node, media, scope, isCallActive = { calls.state.value.phase.isLive }, maxMembers = { c.settings.value.maxGroupMembers },
+        autoJoin = { c.settings.value.autoJoinWalkie },
+    )
     val messaging = MessagingService(
         node, c.messageStore, groups, scope,
         MessagingConfig(retentionMs = { c.settings.value.retentionDays * 24L * 3_600_000L }),
@@ -366,7 +427,25 @@ class LinkStack(private val c: AppContainer, identity: LocalIdentity, engine: An
             groups.group.collect { g -> if (g != null) c.db.groupNames().upsert(GroupNameEntity(g.groupId.hex, g.name, System.currentTimeMillis())) }
         }
         scope.launch {
-            groups.invites.collect { list -> list.lastOrNull()?.let { if (!c.appVisible.value) c.notifications.showGroupInvite(it.fromName, it.name) } }
+            var seen = emptySet<DeviceId>()
+            groups.invites.collect { list ->
+                // Notify once per invitation; inside the app the Home screen shows a Join banner.
+                list.filter { it.groupId !in seen }.forEach { inv ->
+                    c.notifications.showGroupInvite(inv.fromName, inv.name, inv.mode == GroupMode.PTT)
+                }
+                seen = list.map { it.groupId }.toSet()
+                if (list.isEmpty()) c.notifications.cancelGroupInvite()
+            }
+        }
+        scope.launch {
+            groups.events.collect { e ->
+                if (e is GroupEvent.AutoJoined && !c.appVisible.value) {
+                    c.notifications.showInfo("Walkie-talkie with ${e.hostName}", "You joined automatically. Open SRCS and hold the button to talk.")
+                }
+            }
+        }
+        scope.launch {
+            node.incoming.collect { inc -> if (inc.message is AppMessage.LinkBye) c.onPeerBye(this@LinkStack, inc.from) }
         }
         scope.launch {
             messaging.received.collect { m ->

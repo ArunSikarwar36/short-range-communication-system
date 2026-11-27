@@ -50,7 +50,7 @@ fun MainShell(vm: LinkViewModel, gate: PermissionGate, onNavigate: (String) -> U
     val conversations by vm.conversations.collectAsStateWithLifecycle()
     val invites by vm.invites.collectAsStateWithLifecycle()
     val unread = conversations.sumOf { it.unread }
-    // At most every 6 hours, and only if the user leaves "check for updates" on.
+    // At most once an hour, and only if the user leaves "check for updates" on.
     LaunchedEffect(Unit) { vm.c.updates.checkInBackground() }
 
     Column(Modifier.fillMaxSize().background(LinkColors.Background)) {

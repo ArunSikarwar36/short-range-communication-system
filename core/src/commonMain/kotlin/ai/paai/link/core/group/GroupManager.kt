@@ -57,6 +57,8 @@ data class GroupInviteInfo(val groupId: DeviceId, val name: String, val mode: Gr
 sealed class GroupEvent {
     data class Ended(val name: String, val reason: String) : GroupEvent()
     data class Info(val message: String) : GroupEvent()
+    /** This phone joined [hostName]'s walkie-talkie on its own (auto-join). */
+    data class AutoJoined(val name: String, val hostName: String) : GroupEvent()
 }
 
 /**
@@ -80,6 +82,11 @@ class GroupManager(
     private val isCallActive: () -> Boolean,
     private val maxMembers: () -> Int = { 6 },
     private val clock: () -> Long = ::currentTimeMillis,
+    /**
+     * Join walkie-talkie (PTT) invitations from paired phones without asking, like switching on a
+     * radio on the same channel. Group calls (open mic) always ask.
+     */
+    private val autoJoin: () -> Boolean = { false },
 ) {
     private val actor = Dispatchers.Default.limitedParallelism(1)
     private val _group = MutableStateFlow<GroupState?>(null)
@@ -158,10 +165,15 @@ class GroupManager(
 
     suspend fun acceptInvite(groupId: DeviceId): Result<Unit> = withContext(actor) {
         val inv = _invites.value.firstOrNull { it.groupId == groupId } ?: return@withContext Result.failure(IllegalStateException("Invitation expired"))
-        if (_group.value != null) return@withContext Result.failure(IllegalStateException("Leave the current group first"))
-        if (media.busy || isCallActive()) return@withContext Result.failure(IllegalStateException("End the current call first"))
+        join(inv)
+    }
+
+    private suspend fun join(inv: GroupInviteInfo): Result<Unit> {
+        val groupId = inv.groupId
+        if (_group.value != null) return Result.failure(IllegalStateException("Leave the current group first"))
+        if (media.busy || isCallActive()) return Result.failure(IllegalStateException("End the current call first"))
         _invites.value = _invites.value.filter { it.groupId != groupId }
-        if (!node.send(inv.from, AppMessage.GroupJoin(groupId))) return@withContext Result.failure(IllegalStateException("Host unreachable"))
+        if (!node.send(inv.from, AppMessage.GroupJoin(groupId))) return Result.failure(IllegalStateException("Host unreachable"))
         setGroup(GroupState(groupId, inv.name, inv.mode, inv.codec, 0, GroupRole.MEMBER, GroupStatus.JOINING, listOf(GroupMember(inv.from, inv.fromName, 0))))
         joinTimeout?.cancel()
         joinTimeout = scope.launch(actor) {
@@ -170,7 +182,7 @@ class GroupManager(
                 endLocally("Host did not respond")
             }
         }
-        Result.success(Unit)
+        return Result.success(Unit)
     }
 
     suspend fun declineInvite(groupId: DeviceId) = withContext(actor) {
@@ -275,9 +287,26 @@ class GroupManager(
         val g = _group.value
         when (m) {
             is AppMessage.GroupInvite -> {
-                if (_invites.value.none { it.groupId == m.groupId } && g?.groupId != m.groupId) {
-                    _invites.value = _invites.value + GroupInviteInfo(m.groupId, m.name, m.mode, m.codec.validate(), inc.from, node.peerName(inc.from), clock())
+                if (_invites.value.any { it.groupId == m.groupId } || g?.groupId == m.groupId) return
+                val inv = GroupInviteInfo(m.groupId, m.name, m.mode, m.codec.validate(), inc.from, node.peerName(inc.from), clock())
+                val auto = m.mode == GroupMode.PTT && autoJoin() && node.isTrusted(inc.from)
+                // Both phones started a walkie-talkie at the same moment and invited each other: keep
+                // one channel. The phone with the smaller id gives up its own (still empty) channel.
+                if (auto && g != null && g.role == GroupRole.HOST && g.mode == GroupMode.PTT && g.members.size == 1 &&
+                    inc.from in g.invited && node.selfId.hex < inc.from.hex
+                ) {
+                    for (id in g.invited) node.send(id, AppMessage.GroupEnd(g.groupId))
+                    endLocally(null)
                 }
+                if (auto && _group.value == null && !media.busy && !isCallActive()) {
+                    _invites.value = _invites.value + inv
+                    if (join(inv).isSuccess) {
+                        node.log.i(TAG, "joined walkie-talkie '${inv.name}' of ${inv.fromName} automatically")
+                        _events.tryEmit(GroupEvent.AutoJoined(inv.name, inv.fromName))
+                        return
+                    }
+                }
+                _invites.value = _invites.value.filter { it.groupId != inv.groupId } + inv
             }
             is AppMessage.GroupJoin -> if (g != null && g.groupId == m.groupId && g.role == GroupRole.HOST) {
                 if (inc.from !in g.invited) return
@@ -489,7 +518,8 @@ class GroupManager(
         return true
     }
 
-    private fun endLocally(reason: String) {
+    /** Close the group on this phone. A null [reason] closes it silently (no "ended" event). */
+    private fun endLocally(reason: String?) {
         val g = _group.value
         stopTalking()
         recoveryJob?.cancel()
@@ -502,8 +532,8 @@ class GroupManager(
         successorUpdate = null
         mediaKey = null
         if (g != null) {
-            node.log.i(TAG, "group '${g.name}' closed: $reason")
-            _events.tryEmit(GroupEvent.Ended(g.name, reason))
+            node.log.i(TAG, "group '${g.name}' closed: ${reason ?: "merged into the other phone's channel"}")
+            if (reason != null) _events.tryEmit(GroupEvent.Ended(g.name, reason))
         }
     }
 

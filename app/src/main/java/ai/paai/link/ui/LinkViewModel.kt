@@ -181,10 +181,12 @@ class LinkViewModel(app: Application) : AndroidViewModel(app) {
                             else -> null
                         }
                     },
+                    c.notices,
                     s.groups.events.map { e ->
                         when (e) {
                             is GroupEvent.Ended -> "${e.name}: ${e.reason}"
                             is GroupEvent.Info -> e.message
+                            is GroupEvent.AutoJoined -> "Joined ${e.hostName}'s walkie-talkie. Hold to talk."
                         }
                     },
                 )
@@ -220,11 +222,18 @@ class LinkViewModel(app: Application) : AndroidViewModel(app) {
     // ------------------------------------------------------------------ Wi-Fi Direct and links
 
     fun scan() {
+        c.autoConnect.resume()
         c.wifi.discover()
         c.startAwareIfAllowed()
     }
     fun stopScan() = c.wifi.stopDiscovery()
-    fun connectP2p(p: P2pPeer) = c.wifi.connect(p)
+    fun connectP2p(p: P2pPeer) {
+        c.autoConnect.resume()
+        c.wifi.connect(p)
+    }
+    /** Disconnect from every phone in one tap; the other phones drop the link too. */
+    fun disconnectAll() = launch { c.disconnectAll() }
+    val autoConnectStatus = c.autoConnect.status
     fun hostGroup() = c.wifi.createGroup()
     fun leaveP2p() = c.wifi.disconnect()
     fun clearWifiError() = c.wifi.clearError()

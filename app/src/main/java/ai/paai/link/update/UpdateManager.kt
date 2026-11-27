@@ -45,7 +45,7 @@ data class UpdateState(
 /**
  * Checks GitHub for a newer SRCS release and installs it. This is the only time the app talks to
  * an internet server apart from map downloads: one small request to api.github.com, at most
- * every 6 hours, only when the phone has internet. It can be turned off in Settings.
+ * once an hour, only when the phone has internet. It can be turned off in Settings.
  *
  * The downloaded APK is only handed to the Android installer when it is the same app, signed
  * with the same key and newer than this one.
@@ -60,7 +60,7 @@ class UpdateManager(private val app: Application, private val log: LogBuffer, pr
 
     val currentVersion: String get() = BuildConfig.VERSION_NAME
 
-    /** Called when the app opens: checks at most every 6 hours (if the user allows it). */
+    /** Called when the app opens: checks at most once an hour (if the user allows it). */
     fun checkInBackground() {
         if (!_state.value.autoCheck) return
         val last = prefs.getLong(K_LAST, 0)
@@ -218,7 +218,7 @@ class UpdateManager(private val app: Application, private val log: LogBuffer, pr
         const val REPO = "ArunSikarwar36/short-range-communication-system"
         const val LATEST_URL = "https://api.github.com/repos/$REPO/releases/latest"
         const val RELEASES_PAGE = "https://github.com/$REPO/releases/latest"
-        private const val CHECK_EVERY_MS = 6 * 3_600_000L
+        private const val CHECK_EVERY_MS = 3_600_000L
         private const val K_AUTO = "auto_check"
         private const val K_LAST = "last_check"
         private const val K_FOUND = "last_release_json"

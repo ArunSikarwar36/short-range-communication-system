@@ -141,6 +141,11 @@ sealed class AppMessage(val code: Int) {
     data class DjStop(val sessionId: DeviceId) : AppMessage(63)
     /** A listener asks the DJ for a song. */
     data class DjRequest(val sessionId: DeviceId, val text: String) : AppMessage(64)
+    /**
+     * The sender is disconnecting on purpose (the user tapped Disconnect). The receiver drops the
+     * Wi-Fi link too and does not reconnect automatically. Older apps ignore this code.
+     */
+    data class LinkBye(val reason: Int = BYE_USER) : AppMessage(70)
     /** Emergency alert. [hasFix] is false when no GPS position is available; coordinates are then 0. */
     data class Sos(
         val alertId: DeviceId,
@@ -198,6 +203,7 @@ sealed class AppMessage(val code: Int) {
             is DjPlayback -> w.id(sessionId).bool(playing).u64(positionMs)
             is DjStop -> w.id(sessionId)
             is DjRequest -> w.id(sessionId).string(text, MAX_TITLE_BYTES)
+            is LinkBye -> w.u8(reason)
             is Sos -> w.id(alertId).id(subject).string(subjectName, ProtocolLimits.MAX_NAME_BYTES).id(groupId).bool(hasFix)
                 .i32(latE7).i32(lonE7).u16(accuracyM.coerceIn(0, 65535)).u64(fixAt).string(note, MAX_SOS_NOTE_BYTES)
         }
@@ -206,6 +212,7 @@ sealed class AppMessage(val code: Int) {
 
     companion object {
         const val MAX_SOS_NOTE_BYTES = 280
+        const val BYE_USER = 0
         const val MAX_TITLE_BYTES = 200
 
         private fun checkCoordinates(latE7: Int, lonE7: Int) {
@@ -259,6 +266,7 @@ sealed class AppMessage(val code: Int) {
                 62 -> DjPlayback(r.id(), r.bool(), r.u64())
                 63 -> DjStop(r.id())
                 64 -> DjRequest(r.id(), r.string(MAX_TITLE_BYTES))
+                70 -> LinkBye(r.u8())
                 52 -> Sos(r.id(), r.id(), r.string(ProtocolLimits.MAX_NAME_BYTES), r.id(), r.bool(), r.i32(), r.i32(), r.u16(), r.u64(), r.string(MAX_SOS_NOTE_BYTES))
                     .also { if (it.hasFix) checkCoordinates(it.latE7, it.lonE7) }
                 else -> throw ProtocolException("unknown app message $code")

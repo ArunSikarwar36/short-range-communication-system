@@ -58,7 +58,7 @@ fun main() = runBlocking {
     val node = LinkNode(LocalIdentity(kp, "Desktop test phone"), InMemoryTrustStore(), NodeConfig(tcpPort = 47710, udpPort = 47711), log)
     val media = MediaCoordinator(node, EchoEngine(), scope)
     val calls = CallManager(node, media, scope)
-    val groups = GroupManager(node, media, scope, isCallActive = { calls.state.value.phase.isLive })
+    val groups = GroupManager(node, media, scope, isCallActive = { calls.state.value.phase.isLive }, autoJoin = { true })
     val messages = MessagingService(node, InMemoryMessageStore(), groups, scope)
     val location = ai.paai.link.core.location.LocationService(node, groups, scope)
     node.start()

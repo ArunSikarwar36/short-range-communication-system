@@ -162,6 +162,10 @@ fun PeerSheet(
             }
 
             Column(Modifier.fillMaxWidth().glass(RoundedCornerShape(18.dp), Color(0x0AFFFFFF), Color(0x12FFFFFF))) {
+                if (p.reachable) {
+                    SheetRow("Disconnect", Ui.Text) { done { vm.disconnectAll() } }
+                    Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(Color(0x0FFFFFFF)))
+                }
                 SheetRow("Rename", Ui.Text) { renaming = true }
                 Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(Color(0x0FFFFFFF)))
                 SheetRow("Unpair", Color(0xFFFF6B72)) { unpairing = true }

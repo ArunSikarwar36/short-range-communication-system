@@ -100,6 +100,8 @@ fun HomeTab(vm: LinkViewModel, gate: PermissionGate, onTab: (String) -> Unit, on
     val me by vm.myFix.collectAsStateWithLifecycle()
     val sos by vm.activeSos.collectAsStateWithLifecycle()
     val regions by vm.c.maps.list.collectAsStateWithLifecycle()
+    val autoStatus by vm.autoConnectStatus.collectAsStateWithLifecycle()
+    var confirmDisconnect by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<RadarDot?>(null) }
     var sosDialog by remember { mutableStateOf(false) }
     var joinIphone by remember { mutableStateOf(false) }
@@ -179,6 +181,24 @@ fun HomeTab(vm: LinkViewModel, gate: PermissionGate, onTab: (String) -> Unit, on
 
             Column(Modifier.padding(horizontal = 20.dp).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 UpdateBanner(vm)
+                invites.forEach { inv ->
+                    val ptt = inv.mode == GroupMode.PTT
+                    Column(
+                        Modifier.fillMaxWidth().glass(RoundedCornerShape(18.dp), TeamTeal.copy(alpha = 0.18f), TeamTeal.copy(alpha = 0.5f)).padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text(
+                            if (ptt) "${inv.fromName} started a walkie-talkie" else "${inv.fromName} invited you to a group call",
+                            color = Ui.Text, fontWeight = FontWeight.Bold, fontSize = 15.sp,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            PrimaryPill("Join", Modifier.weight(1f), height = 44.dp, colors = listOf(TeamTeal, Color(0xFF0EA5A0))) {
+                                gate.withPermissions(Perms.microphone, Reasons.MIC, Perms.bluetooth) { vm.acceptInvite(inv.groupId) }
+                            }
+                            GlassButton("Not now", Modifier.weight(1f)) { vm.declineInvite(inv.groupId) }
+                        }
+                    }
+                }
                 sos.firstOrNull()?.let { a ->
                     Row(
                         Modifier.fillMaxWidth().glass(RoundedCornerShape(18.dp), Ui.Red.copy(alpha = 0.2f), Ui.Red.copy(alpha = 0.5f))
@@ -248,13 +268,19 @@ fun HomeTab(vm: LinkViewModel, gate: PermissionGate, onTab: (String) -> Unit, on
                     // Empty state: nobody to talk to yet.
                     Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            when { !online -> "You're offline"; dots.isNotEmpty() -> "Phones found nearby"; else -> "No one nearby yet" },
+                            when {
+                                !online -> "You're offline"
+                                autoStatus != null -> "Looking for your phones"
+                                dots.isNotEmpty() -> "Phones found nearby"
+                                else -> "No one nearby yet"
+                            },
                             color = Ui.Text, fontWeight = FontWeight.Bold, fontSize = 22.sp,
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
                             when {
                                 !online -> "Go online to find phones nearby. Calls and messages never use the internet."
+                                autoStatus != null -> autoStatus!!.removeSuffix("…") + "… Phones you connected to before join by themselves when they are nearby and SRCS is online."
                                 dots.isNotEmpty() -> "Tap a phone on the radar to connect, then compare the pairing code on both phones."
                                 wifi.discovering -> "Searching… Open SRCS on your friend's phone and tap Scan there too."
                                 else -> "Open SRCS on your friend's phone and tap Scan there too. Keep the phones within about 50 m."
@@ -339,22 +365,21 @@ fun HomeTab(vm: LinkViewModel, gate: PermissionGate, onTab: (String) -> Unit, on
                                 if (g != null) "${g.name} · ${if (g.mode == GroupMode.PTT) "walkie-talkie" else "group call"}" else "${reachable.size} phone${if (reachable.size == 1) "" else "s"} connected",
                                 color = Ui.Text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1,
                             )
+                            val waiting = g != null && g.members.size == 1 && g.invited.isNotEmpty()
                             Text(
                                 when {
-                                    wifi.group.formed && wifi.group.isOwner -> "Wi-Fi Direct · hosting · ${wifi.group.clientCount} joined"
-                                    wifi.group.formed -> "Wi-Fi Direct · joined a host"
-                                    else -> "Wi-Fi Direct · $linked linked"
+                                    waiting -> "Waiting for ${g!!.invited.mapNotNull { id -> peers.firstOrNull { it.id == id }?.name }.joinToString().ifBlank { "the others" }} to join…"
+                                    g != null -> g.members.joinToString { it.name }
+                                    else -> reachable.joinToString { it.name } + " · tap Start walkie-talkie"
                                 },
-                                color = Ui.Sub, fontSize = 12.sp, maxLines = 1,
+                                color = if (waiting) LinkColors.Warn else Ui.Sub, fontSize = 12.sp, maxLines = 1,
                             )
                         }
-                        if (wifi.group.isOwner && wifi.group.passphrase != null) {
-                            Text("Add iPhone", color = LinkColors.Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.clickable { joinIphone = true }.padding(6.dp))
-                        } else {
-                            Text(if (group != null) "● Live" else "Scan", color = LinkColors.Good, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.clickable(enabled = group == null) { scan() }.padding(6.dp))
-                        }
+                        Text(
+                            "Disconnect", color = Color(0xFFFF8A90), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.background(Ui.Red.copy(alpha = 0.14f), RoundedCornerShape(50)).clickable { confirmDisconnect = true }
+                                .padding(horizontal = 12.dp, vertical = 7.dp),
+                        )
                     }
                 }
             }
@@ -362,6 +387,13 @@ fun HomeTab(vm: LinkViewModel, gate: PermissionGate, onTab: (String) -> Unit, on
     }
 
     if (sosDialog) SosDialog(vm) { sosDialog = false }
+    if (confirmDisconnect) AlertDialog(
+        onDismissRequest = { confirmDisconnect = false },
+        title = { Text("Disconnect?") },
+        text = { Text("Ends the walkie-talkie and the Wi-Fi link with ${reachable.joinToString { it.name }.ifBlank { "the other phones" }}. They are told, so nobody has to disconnect twice. Tap Scan to connect again later.") },
+        confirmButton = { TextButton(onClick = { confirmDisconnect = false; vm.disconnectAll() }) { Text("Disconnect", color = LinkColors.Bad) } },
+        dismissButton = { TextButton(onClick = { confirmDisconnect = false }) { Text("Cancel") } },
+    )
     val joinName = wifi.group.networkName
     val joinPass = wifi.group.passphrase
     if (joinIphone && joinName != null && joinPass != null) JoinIphoneDialog(joinName, joinPass) { joinIphone = false }

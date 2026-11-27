@@ -39,6 +39,8 @@ data class P2pGroupInfo(
     /** WPA passphrase of the group (owner only). Shown to the user for iPhones to join; never logged. */
     val passphrase: String? = null,
     val clientCount: Int = 0,
+    /** The other phones in this Wi-Fi Direct group (clients when owner, the owner when client). */
+    val members: List<P2pPeer> = emptyList(),
 ) {
     override fun toString() = "P2pGroupInfo(formed=$formed, isOwner=$isOwner, owner=$ownerAddress, network=$networkName, clients=$clientCount)"
 }
@@ -118,6 +120,15 @@ class WifiDirectController(
         ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         _state.update { it.copy(registered = true) }
         requestConnection()
+        requestOwnName()
+    }
+
+    /** This phone's Wi-Fi Direct name (the broadcast that carries it does not always arrive). */
+    fun requestOwnName() {
+        val ch = channel ?: return
+        if (Build.VERSION.SDK_INT >= 29) runCatching {
+            manager!!.requestDeviceInfo(ch) { dev -> if (dev != null) _state.update { it.copy(thisDeviceName = dev.deviceName) } }
+        }
     }
 
     fun unregister() {
@@ -129,14 +140,17 @@ class WifiDirectController(
         _state.update { WifiDirectState(supported = supported) }
     }
 
-    fun discover() {
-        val ch = channel ?: return fail("Wi-Fi Direct is not ready")
+    /** Scan for nearby phones. [quiet] scans (automatic reconnecting) only log failures. */
+    fun discover(quiet: Boolean = false) {
+        val ch = channel ?: return if (quiet) Unit else fail("Wi-Fi Direct is not ready")
         manager!!.discoverPeers(ch, object : WifiP2pManager.ActionListener {
             override fun onSuccess() = _state.update { it.copy(discovering = true, lastError = null) }
             override fun onFailure(reason: Int) {
                 if (reason == WifiP2pManager.BUSY && onBusy()) {
                     log.i(TAG, "scan was busy; retrying after freeing the radio")
                     android.os.Handler(Looper.getMainLooper()).postDelayed({ retryDiscover() }, 1_500)
+                } else if (quiet) {
+                    log.d(TAG, "background scan failed: ${reasonText(reason)}")
                 } else {
                     fail("scan failed: ${reasonText(reason)}")
                 }
@@ -202,7 +216,14 @@ class WifiDirectController(
             val owner = info.groupOwnerAddress
             _state.update { it.copy(group = it.group.copy(formed = true, isOwner = info.isGroupOwner, ownerAddress = owner?.hostAddress)) }
             manager.requestGroupInfo(ch) { g ->
-                _state.update { it.copy(group = it.group.copy(networkName = g?.networkName, passphrase = g?.passphrase?.takeIf { g.isGroupOwner }, clientCount = g?.clientList?.size ?: 0)) }
+                val others = when {
+                    g == null -> emptyList()
+                    g.isGroupOwner -> g.clientList.map { P2pPeer(it.deviceName, it.deviceAddress, it.status) }
+                    else -> listOfNotNull(g.owner?.let { P2pPeer(it.deviceName, it.deviceAddress, it.status) })
+                }
+                _state.update {
+                    it.copy(group = it.group.copy(networkName = g?.networkName, passphrase = g?.passphrase?.takeIf { g.isGroupOwner }, clientCount = g?.clientList?.size ?: 0, members = others))
+                }
             }
             if (!lastFormed && owner != null) {
                 lastFormed = true

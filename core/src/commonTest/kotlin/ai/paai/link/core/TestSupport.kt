@@ -136,6 +136,7 @@ class TestDevice(
     val keyPair: KeyPair = Primitives.generateKeyPair(),
     val trust: InMemoryTrustStore = InMemoryTrustStore(),
     tcpPort: Int = 0,
+    autoJoin: Boolean = false,
 ) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val identity = LocalIdentity(keyPair, name)
@@ -152,7 +153,7 @@ class TestDevice(
     )
     val media = MediaCoordinator(node, engine, scope)
     val calls = CallManager(node, media, scope, timerMs = FAST_TIMERS, stallMs = 1_200)
-    val groups = GroupManager(node, media, scope, isCallActive = { calls.state.value.phase.isLive })
+    val groups = GroupManager(node, media, scope, isCallActive = { calls.state.value.phase.isLive }, autoJoin = { autoJoin })
     val store = InMemoryMessageStore()
     val messages = MessagingService(node, store, groups, scope, MessagingConfig(ackTimeoutMs = 1_000))
 

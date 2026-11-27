@@ -92,6 +92,13 @@ fun SettingsScreen(vm: LinkViewModel, onBack: () -> Unit) {
                         }
                         Switch(s.useWifiAware, { on -> vm.setWifiAware(on) })
                     }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Reconnect automatically")
+                            Hint("Phones you connected to before connect again by themselves when both are online and nearby. Stops after someone taps Disconnect, until you scan again.")
+                        }
+                        Switch(s.autoConnect, { on -> vm.updateSettings { it.copy(autoConnect = on) } })
+                    }
                 }
             }
             item {
@@ -101,7 +108,7 @@ fun SettingsScreen(vm: LinkViewModel, onBack: () -> Unit) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Check for updates automatically")
-                            Hint("When the phone has internet, SRCS asks GitHub at most every 6 hours whether a newer version exists. Nothing about you or your contacts is sent.")
+                            Hint("When the phone has internet, SRCS asks GitHub at most once an hour whether a newer version exists. Nothing about you or your contacts is sent.")
                         }
                         Switch(up.autoCheck, { on -> vm.c.updates.setAutoCheck(on) })
                     }
@@ -123,6 +130,13 @@ fun SettingsScreen(vm: LinkViewModel, onBack: () -> Unit) {
             }
             item {
                 SectionCard("Groups") {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Join walkie-talkies automatically")
+                            Hint("When a paired phone starts a walkie-talkie, join it without asking (like a radio on the same channel). Your microphone is only on while you hold the button. Group calls always ask.")
+                        }
+                        Switch(s.autoJoinWalkie, { on -> vm.updateSettings { it.copy(autoJoinWalkie = on) } })
+                    }
                     SettingSlider(
                         label = { "Maximum group size: $it (including you)" },
                         value = s.maxGroupMembers, range = 2..8, steps = 5,

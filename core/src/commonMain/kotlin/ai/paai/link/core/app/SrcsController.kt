@@ -226,6 +226,9 @@ class SrcsController(
     private val _snapshot = MutableStateFlow(emptySnapshot())
     val snapshot: StateFlow<AppSnapshot> = _snapshot.asStateFlow()
     private val _notices = MutableSharedFlow<String>(extraBufferCapacity = 32)
+    /** Join walkie-talkies from paired phones without asking (group calls always ask). */
+    var autoJoinWalkie: Boolean = true
+
     /** Short user-facing notices (toasts): "Busy", "Host lost — you are now hosting", … */
     val notices: SharedFlow<String> = _notices.asSharedFlow()
 
@@ -247,7 +250,7 @@ class SrcsController(
         val node = LinkNode(identity, trustStore, nodeConfig, log)
         val media = MediaCoordinator(node, audio, scope, hooks)
         val calls = CallManager(node, media, scope, timerMs = callTimers, stallMs = callStallMs)
-        val groups = GroupManager(node, media, scope, isCallActive = { calls.state.value.phase.isLive })
+        val groups = GroupManager(node, media, scope, isCallActive = { calls.state.value.phase.isLive }, autoJoin = { autoJoinWalkie })
         val messaging = MessagingService(node, messageStore, groups, scope)
         val location = LocationService(node, groups, scope)
         val dj = DjService(node, groups, media, audio, scope)
@@ -275,6 +278,7 @@ class SrcsController(
                     when (e) {
                         is GroupEvent.Info -> _notices.tryEmit(e.message)
                         is GroupEvent.Ended -> _notices.tryEmit("${e.name}: ${e.reason}")
+                        is GroupEvent.AutoJoined -> _notices.tryEmit("Joined ${e.hostName}'s walkie-talkie. Hold to talk.")
                     }
                 }
             }

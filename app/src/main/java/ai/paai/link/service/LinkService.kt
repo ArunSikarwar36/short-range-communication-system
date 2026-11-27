@@ -37,6 +37,44 @@ class LinkService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /**
+     * Test hooks for two-phone testing from a computer, because some phones (Xiaomi) block
+     * simulated taps: `adb shell dumpsys activity service ai.paai.link/.service.LinkService <cmd>`.
+     * Android only lets callers holding the DUMP permission (adb, the system) reach this.
+     * Commands: status, walkie, talk <ms>, leave, disconnect, scan.
+     */
+    override fun dump(fd: java.io.FileDescriptor?, writer: java.io.PrintWriter, args: Array<out String>?) {
+        val c = (application as LinkApplication).container
+        val s = c.stack.value
+        val cmd = args?.firstOrNull() ?: "status"
+        kotlinx.coroutines.runBlocking {
+            when (cmd) {
+                "walkie" -> {
+                    val peers = s?.node?.peers?.value?.filter { it.trusted && it.reachable }?.map { it.id }.orEmpty()
+                    writer.println(s?.groups?.create("Walkie-talkie", ai.paai.link.core.protocol.GroupMode.PTT, peers) ?: "offline")
+                }
+                "talk" -> {
+                    val ms = args?.getOrNull(1)?.toLongOrNull() ?: 3_000L
+                    s?.groups?.pressTalk()
+                    kotlinx.coroutines.delay(ms)
+                    s?.groups?.releaseTalk()
+                    writer.println("talked for $ms ms")
+                }
+                "leave" -> s?.groups?.leave()
+                "disconnect" -> c.disconnectAll()
+                "scan" -> { c.autoConnect.resume(); kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { c.wifi.discover() } }
+            }
+        }
+        val g = s?.groups?.group?.value
+        val w = c.wifi.state.value
+        writer.println("online=${s != null} wifi=${w.group} auto=${c.autoConnect.status.value} paused=${c.autoConnect.paused.value} known=${c.autoConnect.knowsAnyPhone}")
+        writer.println("p2p: enabled=${w.enabled} discovering=${w.discovering} me=${w.thisDeviceName} peers=${w.peers} error=${w.lastError}")
+        writer.println("peers=" + s?.node?.peers?.value?.joinToString { "${it.name}(trusted=${it.trusted},reachable=${it.reachable},direct=${it.direct})" })
+        writer.println("group=" + g?.let { "${it.name} ${it.mode} ${it.status} role=${it.role} members=${it.members.map { m -> m.name }} invited=${it.invited.size}" })
+        writer.println("ptt=" + s?.groups?.ptt?.value + " invites=" + s?.groups?.invites?.value?.map { it.name + " from " + it.fromName })
+        s?.groups?.session?.value?.let { v -> v.refresh(); writer.println("audio: localLevel=${v.localLevel} levels=${v.levels.value.mapKeys { it.key.short }} stats=${v.stats.value}") }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {

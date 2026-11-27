@@ -84,7 +84,7 @@ call history stay on your phone; delete conversations or set automatic deletion 
 
 ## Updating SRCS
 
-When the phone has internet, SRCS checks for a newer version (at most every 6 hours) and shows
+When the phone has internet, SRCS checks for a newer version (at most once an hour) and shows
 "Update available" on the Home screen. Tap **Install**; the first time, Android asks you to allow
 SRCS to install apps. You can also check by hand in **Me → App updates**, or turn the automatic
 check off in **Settings → App updates**. Calls and messages never use the internet.

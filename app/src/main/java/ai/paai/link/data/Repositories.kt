@@ -61,6 +61,10 @@ data class Settings(
      * and Wi-Fi Aware then blocks Wi-Fi Direct completely (seen on a Xiaomi with Android 16).
      */
     val useWifiAware: Boolean = false,
+    /** Join walkie-talkies started by paired phones without asking (group calls always ask). */
+    val autoJoinWalkie: Boolean = true,
+    /** Reconnect by itself to phones this phone was connected to before. */
+    val autoConnect: Boolean = true,
 )
 
 private val Context.dataStore by preferencesDataStore("settings")
@@ -75,6 +79,8 @@ class SettingsRepository(private val context: Context) {
         val batteryCutoff = intPreferencesKey("low_battery_relay_cutoff")
         val wasOnline = booleanPreferencesKey("was_online")
         val useWifiAware = booleanPreferencesKey("use_wifi_aware")
+        val autoJoinWalkie = booleanPreferencesKey("auto_join_walkie")
+        val autoConnect = booleanPreferencesKey("auto_connect")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -87,6 +93,8 @@ class SettingsRepository(private val context: Context) {
             lowBatteryRelayCutoff = (p[K.batteryCutoff] ?: 20).coerceIn(0, 100),
             wasOnline = p[K.wasOnline] ?: false,
             useWifiAware = p[K.useWifiAware] ?: false,
+            autoJoinWalkie = p[K.autoJoinWalkie] ?: true,
+            autoConnect = p[K.autoConnect] ?: true,
         )
     }
 
@@ -98,6 +106,7 @@ class SettingsRepository(private val context: Context) {
                 Settings(
                     p[K.name] ?: "", p[K.onboarded] ?: false, p[K.relay] ?: true, p[K.maxGroup] ?: 6,
                     p[K.retention] ?: 30, p[K.batteryCutoff] ?: 20, p[K.wasOnline] ?: false, p[K.useWifiAware] ?: false,
+                    p[K.autoJoinWalkie] ?: true, p[K.autoConnect] ?: true,
                 ),
             )
             p[K.name] = s.displayName.trim().take(40)
@@ -108,6 +117,8 @@ class SettingsRepository(private val context: Context) {
             p[K.batteryCutoff] = s.lowBatteryRelayCutoff.coerceIn(0, 100)
             p[K.wasOnline] = s.wasOnline
             p[K.useWifiAware] = s.useWifiAware
+            p[K.autoJoinWalkie] = s.autoJoinWalkie
+            p[K.autoConnect] = s.autoConnect
         }
     }
 }

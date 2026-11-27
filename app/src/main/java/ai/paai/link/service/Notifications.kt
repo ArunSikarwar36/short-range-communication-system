@@ -105,10 +105,23 @@ class Notifications(private val context: Context) {
             .build(),
     )
 
-    fun showGroupInvite(from: String, group: String) = post(
+    fun showGroupInvite(from: String, group: String, walkieTalkie: Boolean) = post(
         GROUP_ID,
         NotificationCompat.Builder(context, CH_EVENTS).setSmallIcon(R.drawable.ic_stat_link)
-            .setContentTitle("Group invitation").setContentText("$from invited you to '$group'").setAutoCancel(true)
+            .setContentTitle(if (walkieTalkie) "$from started a walkie-talkie" else "$from invited you to a group call")
+            .setContentText("'$group' · open SRCS to join").setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(openApp()).build(),
+    )
+
+    fun cancelGroupInvite() = nm.cancel(GROUP_ID)
+
+    /** One-off notice: joined a walkie-talkie automatically, a phone disconnected, … */
+    fun showInfo(title: String, text: String) = post(
+        INFO_ID,
+        NotificationCompat.Builder(context, CH_EVENTS).setSmallIcon(R.drawable.ic_stat_link)
+            .setContentTitle(title).setContentText(text).setAutoCancel(true)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(openApp()).build(),
     )
 
@@ -147,6 +160,7 @@ class Notifications(private val context: Context) {
         const val GROUP_ID = 4
         const val PAIR_ID = 5
         const val SOS_ID = 6
+        const val INFO_ID = 7
         const val MESSAGE_ID_BASE = 1000
     }
 }

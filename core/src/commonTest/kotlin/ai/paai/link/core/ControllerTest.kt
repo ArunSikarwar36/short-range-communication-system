@@ -88,9 +88,21 @@ class ControllerTest {
     }
 
     @Test
+    fun iphoneJoinsWalkieTalkieAutomatically() {
+        val a = controller("Android host", FakeAudioEngine(1000))
+        val b = controller("iPhone", FakeAudioEngine(2000))
+        runBlocking { assertTrue(a.start()); assertTrue(b.start()) }
+        pair(a, b)
+        a.createGroup("Field team", walkieTalkie = true, peerIds = listOf(b.deviceId))
+        eventually(what = "joined without tapping") { b.snapshot.value.group?.status == "ACTIVE" && a.snapshot.value.group?.members?.size == 2 }
+        assertTrue(b.snapshot.value.invites.isEmpty())
+    }
+
+    @Test
     fun iphoneJoinsWalkieTalkieGroup() {
         val a = controller("Android host", FakeAudioEngine(1000))
         val b = controller("iPhone", FakeAudioEngine(2000))
+        b.autoJoinWalkie = false
         runBlocking { assertTrue(a.start()); assertTrue(b.start()) }
         pair(a, b)
         a.createGroup("Field team", walkieTalkie = true, peerIds = listOf(b.deviceId))

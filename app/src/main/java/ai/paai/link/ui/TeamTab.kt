@@ -165,9 +165,9 @@ private fun TeamHeader(vm: LinkViewModel, gate: PermissionGate, onPerson: (Devic
             when {
                 wifi.group.isOwner && wifi.group.passphrase != null -> {
                     GlassButton("Add an iPhone", Modifier.weight(1f)) { joinIphone = true }
-                    GlassButton("Leave Wi-Fi group", Modifier.weight(1f)) { vm.leaveP2p() }
+                    GlassButton("Disconnect", Modifier.weight(1f)) { vm.disconnectAll() }
                 }
-                wifi.group.formed -> GlassButton("Leave Wi-Fi group", Modifier.weight(1f)) { vm.leaveP2p() }
+                wifi.group.formed -> GlassButton("Disconnect", Modifier.weight(1f)) { vm.disconnectAll() }
                 else -> GlassButton("Host a group", Modifier.weight(1f)) { gate.withPermissions(Perms.discovery, Reasons.DISCOVERY) { vm.hostGroup() } }
             }
         }

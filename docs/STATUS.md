@@ -121,7 +121,33 @@ phone echoes messages and answers calls by sending your own Opus audio back. Wri
 - Team tab: purple header, stats (nearby / connected / farthest), glass list with call buttons.
   Call screen: purple glow, pulsing rings, glass control bar.
 - In-app updates (`update/UpdateManager.kt`): asks api.github.com for the latest release at most
-  every 6 hours when online (Settings → App updates can turn it off, Me → App updates checks now).
+  once an hour when online (Settings → App updates can turn it off, Me → App updates checks now).
   The APK is downloaded to the app cache and only handed to the Android installer if it is the
   same package, signed with the same key and newer. Release assets must keep the name `SRCS.apk`
   and the tag `vX.Y.Z`.
+
+## 0.5.2 — walkie-talkie and connections without extra taps (2026-11-27)
+
+First real two-phone test of 0.5.0 found: both users tapped "Start walkie-talkie", so each phone
+hosted its own empty channel; invitations gave no sign while the app was open; reconnecting and
+disconnecting needed taps on both phones.
+
+- **Auto-join** (core `GroupManager(autoJoin)`, Settings → Groups, on by default): a walkie-talkie
+  (PTT) invitation from a paired phone is joined at once. Group calls (open mic) still ask. If both
+  phones start a channel at the same moment, the phone with the smaller device id drops its empty
+  channel and joins the other (`WalkieTalkieTest`).
+- **Invitations**: notification every time (also while the app is open) and a Join / Not now
+  banner on Home. Auto-joins show a toast and, in the background, a notification.
+- **Auto-reconnect** (`wifidirect/AutoConnector.kt`, Settings → Connections): phones remember the
+  Wi-Fi Direct devices they had a paired SRCS link with; while online and not in a group they keep a
+  quiet scan running and reconnect when a remembered phone appears. Verified on the two test phones:
+  both online → Wi-Fi Direct group + paired link in about 6 s, no taps, no prompt.
+- **Disconnect** (Home channel strip, Team, phone sheet): sends `LinkBye` (app message 70; older
+  apps ignore it), leaves the walkie-talkie and the Wi-Fi Direct group. The other phone drops the
+  link and ends an empty channel too. Both then stop dialling (but keep scanning, so they stay
+  findable) until someone taps Scan or Connect. Verified on the phones.
+- **adb test hooks** (Xiaomi blocks simulated taps):
+  `adb shell dumpsys activity service ai.paai.link/.service.LinkService <status|walkie|talk ms|leave|disconnect|scan>`
+  (only callers with the DUMP permission — adb — can use it). Real-phone results: auto-join works;
+  talk 4 s each way: 200/200 and 197/200 packets (the very first talk right after joining lost its
+  first second while the receiver's audio started).
