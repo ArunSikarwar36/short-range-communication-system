@@ -189,7 +189,11 @@ class WifiDirectController(
     fun disconnect() {
         val ch = channel ?: return
         manager!!.cancelConnect(ch, null)
-        manager.removeGroup(ch, listener("leave group") { log.i(TAG, "left Wi-Fi Direct group") })
+        manager.removeGroup(ch, object : WifiP2pManager.ActionListener {
+            override fun onSuccess() = log.i(TAG, "left Wi-Fi Direct group")
+            // Fails when the other phone already closed the group: nothing for the user to fix.
+            override fun onFailure(reason: Int) = log.d(TAG, "leave group: ${reasonText(reason)} (group probably already gone)")
+        })
     }
 
     private fun requestPeers() {

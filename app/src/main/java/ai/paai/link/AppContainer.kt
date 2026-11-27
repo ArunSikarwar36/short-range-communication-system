@@ -184,7 +184,12 @@ class AppContainer(val app: Application) {
         // Remember the phones of a Wi-Fi Direct group once a paired SRCS link runs over it.
         scope.launch {
             kotlinx.coroutines.flow.combine(wifi.state.map { it.group }, _stack.flatMapLatest { it?.node?.linkInfos ?: flowOf(emptyList()) }) { g, links -> g to links }
-                .collect { (g, links) -> if (g.formed && g.members.isNotEmpty() && links.any { it.trusted }) autoConnect.remember(g.members) }
+                .collect { (g, links) ->
+                    if (g.formed && g.members.isNotEmpty() && links.any { it.trusted }) {
+                        autoConnect.remember(g.members)
+                        autoConnect.resume() // connected again: reconnect by itself if the link drops later
+                    }
+                }
         }
     }
 

@@ -151,3 +151,13 @@ disconnecting needed taps on both phones.
   (only callers with the DUMP permission — adb — can use it). Real-phone results: auto-join works;
   talk 4 s each way: 200/200 and 197/200 packets (the very first talk right after joining lost its
   first second while the receiver's audio started).
+
+## 0.5.3 (2026-11-27)
+
+Second two-phone run (all over the real Wi-Fi Direct link, driven through the adb test hooks):
+walkie-talkie started on phone 2 → phone 1 joined by itself; 4 s talk each way: 200/200 and 192
+packets, 0 % loss; Disconnect on phone 1 → phone 2 dropped too; nobody reconnected for 40 s; Scan
+on phone 1 only → reconnected in 2 s.
+Fixes: no false "leave group failed" error when the other phone already closed the group; automatic
+reconnecting is switched back on once phones are connected again; the status pill asks before going
+offline; test hooks no longer block the main thread (caused an ANR).
