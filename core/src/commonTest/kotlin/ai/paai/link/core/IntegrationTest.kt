@@ -163,8 +163,14 @@ class IntegrationTest {
         eventually(what = "B hears A and A hears B") { b.engine.heardCount(1000) > 10 && a.engine.heardCount(2000) > 10 }
 
         a.calls.setMuted(true)
-        sleepMillis(600)
-        val before = b.engine.heardCount(1000)
+        // Audio already on its way (network, jitter buffer) still plays out; on a slow CI machine that
+        // can take longer than a fixed pause, so wait until nothing new arrives before checking.
+        var before = b.engine.heardCount(1000)
+        eventually(what = "audio in flight played out") {
+            sleepMillis(400)
+            val now = b.engine.heardCount(1000)
+            (now == before).also { before = now }
+        }
         sleepMillis(800)
         assertEquals(before, b.engine.heardCount(1000), "muted microphone must not be heard")
         assertEquals(CallPhase.ACTIVE, b.calls.state.value.phase, "keepalives keep a muted call alive")
