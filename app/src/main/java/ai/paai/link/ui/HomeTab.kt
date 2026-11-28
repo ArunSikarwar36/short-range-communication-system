@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -220,7 +219,8 @@ fun HomeTab(vm: LinkViewModel, gate: PermissionGate, onTab: (String) -> Unit, on
                 Box(Modifier.size(side)) {
                     RadarGlow(if (talking) Ui.Red else Color(0xFFFF3C46), active = online, sweep = online && dots.isEmpty())
                     val half = side / 2
-                    val meSize = if (dots.isEmpty()) 76 else 84
+                    // Smaller "me" bubble once others are on the radar, so their name tags never overlap it.
+                    val meSize = if (dots.isEmpty()) 76 else 64
                     AvatarBubble(
                         settings.displayName.ifBlank { "You" },
                         Modifier.offset(half - (meSize / 2).dp, half - (meSize / 2).dp)
@@ -233,8 +233,9 @@ fun HomeTab(vm: LinkViewModel, gate: PermissionGate, onTab: (String) -> Unit, on
                         val y = half + half * (d.radius * sin(rad)).toFloat()
                         AvatarBubble(
                             d.name,
-                            Modifier.offset(x - 42.dp, y - 26.dp).widthIn(max = 84.dp).clickable { selected = d },
-                            sizeDp = 52,
+                            // Fixed width (= label width) so the bubble is centred on its radar position.
+                            Modifier.offset(x - 42.dp, y - 24.dp).width(84.dp).clickable { selected = d },
+                            sizeDp = 48,
                             ring = when (d.ring) { RadarRing.LINKED -> LinkColors.Good; RadarRing.RELAYED -> LinkColors.Accent; RadarRing.NEARBY -> Color(0x99FFFFFF) },
                             label = d.name.take(12) + when {
                                 d.distanceM >= 0 -> " · " + Geo.formatDistance(d.distanceM)

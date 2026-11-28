@@ -39,6 +39,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import ai.paai.link.core.protocol.AppMessage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -220,6 +221,8 @@ class SrcsController(
     @Volatile private var name = displayName.trim().ifBlank { "iPhone" }.take(40)
     @Volatile private var stack: Stack? = null
     @Volatile private var autoConnect = false
+    /** Set after someone tapped Disconnect: no automatic dialling until the user connects again. */
+    @Volatile private var autoPaused = false
     @Volatile private var lastFix: GeoFix? = null
     private val busy = MutableStateFlow(false)
 
@@ -286,6 +289,18 @@ class SrcsController(
                 calls.finished.collect { s ->
                     val r = s.endReason ?: return@collect
                     if (s.phase == CallPhase.FAILED || r.name !in setOf("HANGUP_LOCAL", "HANGUP_REMOTE")) _notices.tryEmit(r.label)
+                }
+            }
+            scope.launch {
+                node.incoming.collect { inc ->
+                    if (inc.message !is AppMessage.LinkBye) return@collect
+                    // The other phone tapped Disconnect: follow it, and do not dial back by ourselves.
+                    autoPaused = true
+                    _notices.tryEmit("${node.peerName(inc.from)} disconnected")
+                    val g = groups.group.value
+                    if (g != null && (g.host == inc.from || g.members.none { it.id != node.selfId && it.id != inc.from })) groups.leave()
+                    delay(300)
+                    if (node.peers.value.none { it.trusted && it.reachable && it.direct && it.id != inc.from }) node.disconnectAll()
                 }
             }
             scope.launch {
@@ -358,7 +373,34 @@ class SrcsController(
     // ------------------------------------------------------------------ linking
 
     /** Dial an SRCS device. On an Android host's Wi-Fi Direct network the host is [WifiJoin.HOST_ADDRESS]. */
+    /**
+     * One-tap disconnect: tells the connected phones (they drop the link too and do not dial back),
+     * leaves the walkie-talkie or group call and closes the links. No automatic reconnecting until
+     * the user connects again.
+     */
+    fun disconnectAll() {
+        scope.launch {
+            val s = stack ?: return@launch
+            autoPaused = true
+            val direct = s.node.peers.value.filter { it.trusted && it.reachable && it.direct }
+            for (p in direct) s.node.send(p.id, AppMessage.LinkBye())
+            if (s.calls.state.value.phase.isLive) s.calls.hangup()
+            s.groups.leave()
+            delay(400)
+            s.node.disconnectAll()
+            _notices.tryEmit(if (direct.isEmpty()) "Disconnected" else "Disconnected from ${direct.joinToString { it.name }}")
+        }
+    }
+
+    /** Start a walkie-talkie with every paired phone in range; they join it automatically. */
+    fun startWalkieTalkie() {
+        val s = stack ?: return
+        val peers = s.node.peers.value.filter { it.trusted && it.reachable }.map { it.id.hex }
+        if (peers.isEmpty()) _notices.tryEmit("Connect to a phone first") else createGroup("Walkie-talkie", true, peers)
+    }
+
     fun connect(host: String, port: Int) {
+        autoPaused = false
         scope.launch {
             val s = stack ?: run { _notices.tryEmit("Go online first"); return@launch }
             val r = s.node.connect(host.trim(), port)
@@ -375,7 +417,7 @@ class SrcsController(
         while (scope.isActive) {
             delay(4_000)
             val s = stack ?: continue
-            if (!autoConnect || s.node.linkInfos.value.isNotEmpty()) continue
+            if (!autoConnect || autoPaused || s.node.linkInfos.value.isNotEmpty()) continue
             s.node.connect(WifiJoin.HOST_ADDRESS, nodeConfig.tcpPort, timeoutMs = 3_000)
         }
     }

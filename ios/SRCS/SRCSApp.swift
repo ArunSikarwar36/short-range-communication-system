@@ -16,11 +16,21 @@ struct SRCSApp: App {
 
 struct RootView: View {
     @EnvironmentObject var model: AppModel
+    @State private var tab = "home"
 
     var body: some View {
         ZStack(alignment: .bottom) {
             if model.onboarded {
-                HomeScreen()
+                TabView(selection: $tab) {
+                    HomeScreen().tabItem { Label("Home", systemImage: "waveform") }.tag("home")
+                    TeamScreen().tabItem { Label("Team", systemImage: "person.2") }.tag("team")
+                        .badge(model.snap?.invites.count ?? 0)
+                    NavigationStack { MapScreen() }.tabItem { Label("Map", systemImage: "map") }.tag("map")
+                    ChatsScreen().tabItem { Label("Chats", systemImage: "bubble.left.and.bubble.right") }.tag("chats")
+                        .badge(Int((model.snap?.peers ?? []).reduce(0) { $0 + $1.unread }))
+                    SettingsScreen().tabItem { Label("Me", systemImage: "person.crop.circle") }.tag("me")
+                }
+                .tint(tab == "team" ? Ui.purple : (tab == "home" ? Ui.redLight : Ui.cyan))
             } else {
                 OnboardingScreen()
             }
@@ -30,18 +40,34 @@ struct RootView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
                     .background(.ultraThinMaterial, in: Capsule())
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 70)
                     .transition(.opacity)
                     .accessibilityIdentifier("notice")
             }
         }
         .animation(.easeInOut(duration: 0.2), value: model.notice)
+        .alert(pairingTitle, isPresented: pairingShown, presenting: pendingPairing) { p in
+            Button("Codes match") { model.controller.confirmPairing(linkId: p.linkId, accept: true) }
+            Button("Cancel", role: .cancel) { model.controller.confirmPairing(linkId: p.linkId, accept: false) }
+        } message: { p in
+            Text("Check that the other phone shows the same code:\n\n\(p.code)\n\nIf the codes differ, someone may be intercepting the connection. Tap Cancel.")
+        }
         .fullScreenCover(isPresented: Binding(
             get: { model.snap?.call?.live == true },
             set: { _ in }
         )) {
             CallScreen().environmentObject(model)
         }
+    }
+
+    private var pendingPairing: PairingView? {
+        model.snap?.pairings.first { !$0.waitingForOther }
+    }
+
+    private var pairingTitle: String { "Pair with \(pendingPairing?.name ?? "device")?" }
+
+    private var pairingShown: Binding<Bool> {
+        Binding(get: { pendingPairing != nil }, set: { _ in })
     }
 }
 

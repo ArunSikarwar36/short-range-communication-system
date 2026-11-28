@@ -88,6 +88,24 @@ class ControllerTest {
     }
 
     @Test
+    fun oneTapWalkieTalkieAndDisconnectFromOnePhone() {
+        val a = controller("Android host", FakeAudioEngine(1000))
+        val b = controller("iPhone", FakeAudioEngine(2000))
+        runBlocking { assertTrue(a.start()); assertTrue(b.start()) }
+        pair(a, b)
+        val notices = SyncList<String>()
+        a.watchNotices { notices += it }
+        b.startWalkieTalkie()
+        eventually(what = "both on one channel") { a.snapshot.value.group?.status == "ACTIVE" && b.snapshot.value.group?.members?.size == 2 }
+        b.disconnectAll()
+        eventually(what = "the other phone followed") {
+            a.snapshot.value.group == null && b.snapshot.value.group == null &&
+                a.snapshot.value.linkCount == 0 && b.snapshot.value.linkCount == 0
+        }
+        eventually(what = "told why") { notices.snapshot().any { it == "iPhone disconnected" } }
+    }
+
+    @Test
     fun iphoneJoinsWalkieTalkieAutomatically() {
         val a = controller("Android host", FakeAudioEngine(1000))
         val b = controller("iPhone", FakeAudioEngine(2000))

@@ -37,7 +37,7 @@ final class SRCSUITests: XCTestCase {
         nameField.typeText("CI iPhone")
         app.buttons["getStarted"].tap()
 
-        // Go online.
+        // Go online (Home, offline state).
         let online = app.buttons["onlineButton"]
         XCTAssertTrue(online.waitForExistence(timeout: 10))
         online.tap()
@@ -56,7 +56,11 @@ final class SRCSUITests: XCTestCase {
         XCTAssertTrue(match.waitForExistence(timeout: 30), "pairing dialog")
         snap(app, "03-pairing-code")
         match.tap()
-        // The list has scrolled to the address field; the paired phone's row appears just below it.
+        snap(app, "04a-home-connected")
+        // Paired phones are listed on the Team tab.
+        let team = app.tabBars.buttons["Team"]
+        XCTAssertTrue(team.waitForExistence(timeout: 10))
+        team.tap()
         let chat = app.buttons["chat-Desktop test phone"]
         _ = chat.waitForExistence(timeout: 20)
         XCTAssertTrue(scrollTo(chat, in: app), "paired phone listed")

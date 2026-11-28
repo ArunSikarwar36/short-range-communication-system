@@ -21,6 +21,13 @@ final class AppModel: ObservableObject {
         }
     }
 
+    @Published var autoJoinWalkie: Bool {
+        didSet {
+            defaults.set(autoJoinWalkie, forKey: "autoJoinWalkie")
+            controller.autoJoinWalkie = autoJoinWalkie
+        }
+    }
+
     let controller: SrcsController
     let gps: GpsProvider
     private var sosPending = false
@@ -43,6 +50,7 @@ final class AppModel: ObservableObject {
         onboarded = wasOnboarded
         displayName = name
         autoConnect = auto
+        autoJoinWalkie = stored.object(forKey: "autoJoinWalkie") as? Bool ?? true
         controller = SrcsController.Companion.shared.create(
             dataDir: AppModel.dataDir,
             privateKey: Keychain.identityKey(),
@@ -51,6 +59,7 @@ final class AppModel: ObservableObject {
             hooks: AudioHooks()
         )
         controller.setAutoConnect(enabled: auto)
+        controller.autoJoinWalkie = autoJoinWalkie
         gps = GpsProvider(controller: controller)
         watchers.append(controller.watch { [weak self] s in
             DispatchQueue.main.async { self?.apply(s) }
@@ -188,6 +197,13 @@ final class AppModel: ObservableObject {
     func joinGroup(_ groupId: String) {
         Microphone.request { granted in
             if granted { self.controller.acceptInvite(groupId: groupId) } else { self.show("SRCS needs the microphone for group calls.") }
+        }
+    }
+
+    /// Start a walkie-talkie with every paired phone in range; they join it automatically.
+    func startWalkieTalkie() {
+        Microphone.request { granted in
+            if granted { self.setSpeaker(true); self.controller.startWalkieTalkie() } else { self.show("SRCS needs the microphone for the walkie-talkie.") }
         }
     }
 

@@ -33,9 +33,16 @@ struct GroupScreen: View {
                 if g.isPtt {
                     Text(pttLine(g)).font(.headline).accessibilityIdentifier("pttStatus")
                     Circle()
-                        .fill(g.iAmTalking ? Color.green : (g.talker.isEmpty ? Color.accentColor : Color.gray))
+                        .fill(g.talker.isEmpty || g.iAmTalking
+                              ? AnyShapeStyle(LinearGradient(colors: [Ui.redLight, g.iAmTalking ? Color(red: 1, green: 0.12, blue: 0.18) : Ui.red], startPoint: .topLeading, endPoint: .bottomTrailing))
+                              : AnyShapeStyle(Color(white: 0.25)))
                         .frame(width: 170, height: 170)
-                        .overlay(Text(g.iAmTalking ? "Talking" : "Hold to talk").font(.title3.bold()).foregroundStyle(.white))
+                        .background(Circle().fill(Ui.red.opacity(0.25)).frame(width: 206, height: 206))
+                        .shadow(color: Ui.red.opacity(g.talker.isEmpty || g.iAmTalking ? 0.5 : 0), radius: 20)
+                        .overlay(VStack(spacing: 4) {
+                            Image(systemName: "mic.fill").font(.system(size: 44))
+                            Text(g.iAmTalking ? "TALKING" : "HOLD").font(.headline)
+                        }.foregroundStyle(.white))
                         .scaleEffect(pressing ? 0.95 : 1)
                         .gesture(
                             DragGesture(minimumDistance: 0)
@@ -69,6 +76,8 @@ struct GroupScreen: View {
                 .padding(.horizontal)
                 Spacer()
             }
+            .scrollContentBackground(.hidden)
+            .background(Ui.bg.ignoresSafeArea())
             .navigationTitle(g.name)
             .onAppear { model.setSpeaker(true) }
             .onDisappear {
