@@ -99,3 +99,21 @@ Do not publish a single range figure from one test.
 | Phone | Android | Wi-Fi Direct | Pair | Call | PTT | Group (3) | Relay | Notes |
 |---|---|---|---|---|---|---|---|---|
 | | | | | | | | | |
+
+## Field test with two phones (0.5.x)
+
+Write down what happened (and a screenshot) for every step that fails or feels clumsy.
+
+1. **Update** phone 2 with the in-app banner (Home → Install). Both phones on the same version (Me → App updates).
+2. **Reconnect by itself**: both online, close to each other → connected within ~10 s without taps.
+3. **Walkie-talkie**: phone A taps Start walkie-talkie → phone B joins by itself (toast). Hold to talk on
+   both sides; rate the sound (clear / robotic / cuts out) and the delay (short / noticeable / long).
+4. **Range** (talking every few metres): 10 m, 30 m, 50 m in the open, then through one wall, then two.
+   Note where the sound starts breaking up and where the link drops. Walk back: does it reconnect by itself?
+5. **Disconnect** on one phone → the other follows; **Scan** on one phone → both back.
+6. **Call** (Team → call button): ring, answer, speaker / earpiece, mute, end.
+7. **Messages**: send both ways; send while the other phone is offline, then bring it back → delivered once.
+8. **DJ Mode**: start a walkie-talkie, Team → DJ Mode → add a song → plays on the other phone.
+9. **Location & SOS**: share location (Me / phone options) → the other phone shows distance; send an SOS.
+10. **Offline map**: Map → Map areas → download a small area (needs internet once) → map shows offline.
+11. **Battery**: both online for 1 hour with the screen off → battery used by SRCS (Settings → Battery).

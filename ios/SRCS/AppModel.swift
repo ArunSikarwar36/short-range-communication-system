@@ -24,7 +24,7 @@ final class AppModel: ObservableObject {
     @Published var autoJoinWalkie: Bool {
         didSet {
             defaults.set(autoJoinWalkie, forKey: "autoJoinWalkie")
-            controller.autoJoinWalkie = autoJoinWalkie
+            controller.autoJoinWalkie = join
         }
     }
 
@@ -50,7 +50,8 @@ final class AppModel: ObservableObject {
         onboarded = wasOnboarded
         displayName = name
         autoConnect = auto
-        autoJoinWalkie = stored.object(forKey: "autoJoinWalkie") as? Bool ?? true
+        let join = stored.object(forKey: "autoJoinWalkie") as? Bool ?? true
+        autoJoinWalkie = join
         controller = SrcsController.Companion.shared.create(
             dataDir: AppModel.dataDir,
             privateKey: Keychain.identityKey(),
@@ -59,7 +60,7 @@ final class AppModel: ObservableObject {
             hooks: AudioHooks()
         )
         controller.setAutoConnect(enabled: auto)
-        controller.autoJoinWalkie = autoJoinWalkie
+        controller.autoJoinWalkie = join
         gps = GpsProvider(controller: controller)
         watchers.append(controller.watch { [weak self] s in
             DispatchQueue.main.async { self?.apply(s) }
