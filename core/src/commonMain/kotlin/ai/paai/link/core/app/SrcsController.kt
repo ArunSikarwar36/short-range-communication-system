@@ -403,7 +403,15 @@ class SrcsController(
         autoPaused = false
         scope.launch {
             val s = stack ?: run { _notices.tryEmit("Go online first"); return@launch }
-            val r = s.node.connect(host.trim(), port)
+            // A single dropped handshake (busy network, the other phone still starting) should not
+            // need another tap: try up to three times before reporting the failure.
+            var r = s.node.connect(host.trim(), port)
+            var attempt = 1
+            while (r.isFailure && attempt < 3 && stack === s) {
+                delay(1_000L * attempt)
+                attempt++
+                r = s.node.connect(host.trim(), port)
+            }
             if (r.isFailure) _notices.tryEmit("Could not connect to $host: ${r.exceptionOrNull()?.message ?: "error"}")
         }
     }
