@@ -24,7 +24,7 @@ final class AppModel: ObservableObject {
     @Published var autoJoinWalkie: Bool {
         didSet {
             defaults.set(autoJoinWalkie, forKey: "autoJoinWalkie")
-            controller.autoJoinWalkie = join
+            controller.autoJoinWalkie = autoJoinWalkie
         }
     }
 
