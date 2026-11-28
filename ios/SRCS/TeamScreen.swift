@@ -25,7 +25,7 @@ struct TeamScreen: View {
                         }
                     }
                     .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                    .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 8, trailing: 4))
                 }
                 Section("Phones") {
                     if peers.isEmpty {

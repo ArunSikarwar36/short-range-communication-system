@@ -36,7 +36,7 @@ struct RadarView: View {
                                 .init(color: glow.opacity(0.06), location: 0.62),
                                 .init(color: .clear, location: 0.75),
                             ]), center: c, startRadius: 0, endRadius: r))
-                        for f in [0.46, 0.68, 0.88] { g.stroke(circle(r * f), with: .color(Color(red: 1, green: 0.47, blue: 0.47).opacity(0.25)), lineWidth: 1) }
+                        for f in [RadarRing.linked.radius, RadarRing.relayed.radius, RadarRing.nearby.radius].map({ CGFloat($0) }) { g.stroke(circle(r * f), with: .color(Color(red: 1, green: 0.47, blue: 0.47).opacity(0.25)), lineWidth: 1) }
                         guard online else { return }
                         let t = ctx.date.timeIntervalSinceReferenceDate
                         for k in 0..<2 {

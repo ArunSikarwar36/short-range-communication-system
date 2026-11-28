@@ -5,7 +5,8 @@ package ai.paai.link.core.app
  * reached, not a measured distance (phones share no location):
  * inner = linked directly, middle = reached through a relay, outer = nearby but not linked yet.
  */
-enum class RadarRing(val radius: Float) { LINKED(0.46f), RELAYED(0.68f), NEARBY(0.88f) }
+// Inner ring well away from the centre so name tags never cover this phone's own bubble.
+enum class RadarRing(val radius: Float) { LINKED(0.58f), RELAYED(0.76f), NEARBY(0.92f) }
 
 /** One phone on the radar. [angleDeg] is clockwise from 12 o'clock; [radius] is a fraction of the radar radius. */
 data class RadarDot(
@@ -71,10 +72,10 @@ object RadarLayout {
     /** Radar edge in metres for GPS placement. */
     const val GEO_RANGE_M = 5_000.0
 
-    /** Log scale: 0 m at the centre's edge (0.22), 5 km and beyond at 0.94. */
+    /** Log scale: 0 m just outside the centre bubble (0.5), 5 km and beyond at 0.94. */
     fun geoRadius(distanceM: Double): Float {
         val f = kotlin.math.ln(1 + distanceM.coerceAtLeast(0.0) / 10) / kotlin.math.ln(1 + GEO_RANGE_M / 10)
-        return (0.22 + 0.72 * f.coerceIn(0.0, 1.0)).toFloat()
+        return (0.5 + 0.44 * f.coerceIn(0.0, 1.0)).toFloat()
     }
 
     /** How many entries did not fit on their ring. */
